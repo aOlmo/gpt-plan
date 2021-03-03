@@ -1,22 +1,23 @@
 import os
 import time
+import nltk
 import pickle
 import openai
 import random
-import re
+from nltk.stem import PorterStemmer, LancasterStemmer
 
 # TODO: Use threads for parallel execution
-# TODO: Try to reduce complexity of the text sent
-# ---------------- Specs -----------------
-# Set to 0 for reproducibility
-gpt3_temp = 0.5
-gpt3_max_tokens = 200
+# ================= Params =================
+random.seed(42)
+gpt3_temp = 0.7 # Set to 0 for reproducibility
+gpt3_max_tokens = 150
 openai.api_key = os.environ["OPENAI_API_KEY"]
-n_examples = 2 # The amount of text cannot go over 2048
+n_examples = 2  # The amount of text cannot go over 2048
 tags = ["\n\nRECIPE: \n", "\nACTIONS: \n"]
 n_runs = 10
-max_acts = 10
-# ----------------------------------------
+max_acts = 15
+stemmer = PorterStemmer()
+# ==========================================
 
 a = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
 b = pickle.load(open("EASDRL/data/win2k_labeled_text_data.pkl", "rb"))
@@ -27,7 +28,6 @@ e = pickle.load(open("EASDRL/data/cooking_dependency.pkl", "rb"))
 t_prec = 0
 t_rec = 0
 t_f1 = 0
-
 for i in range(n_runs):
     query = ""
     samples = random.sample(c, n_examples+1)
@@ -50,6 +50,8 @@ for i in range(n_runs):
     true_acts_text.replace(",", "")
 
     true_acts = [act.split("(")[0].strip() for act in true_acts_text.split("),") if act.split("(")[0].strip() != ""]
+    true_acts_stem = [stemmer.stem(w) for w in true_acts]
+
     # ---------------- Send GPT3 query --------------
     print("[+]: Sending query...")
     start = time.time()
@@ -73,13 +75,14 @@ for i in range(n_runs):
 
     gpt3_acts_text = text_response.split(tags[0])[0]
     pred_acts = [act.split("(")[0].strip() for act in gpt3_acts_text.split("),") if act.split("(")[0].strip() != ""]
+    pred_acts_stem = [stemmer.stem(w) for w in pred_acts]
 
-    true_acts_cpy = true_acts[:]
-    totalTruth = len(true_acts)
-    totalTagged = len(pred_acts)
+    true_acts_cpy = true_acts_stem[:]
+    totalTruth = len(true_acts_stem)
+    totalTagged = len(pred_acts_stem)
     totalRight = 0
     # Check if the current action is in the list of gt actions, if it is, remove from the truth list
-    for act in pred_acts:
+    for act in pred_acts_stem:
         if act in true_acts_cpy:
             totalRight += 1
             true_acts_cpy.remove(act)
