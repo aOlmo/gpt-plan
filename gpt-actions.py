@@ -33,11 +33,14 @@ for i in range(n_runs):
     samples = random.sample(c, n_examples+1)
     for sample in samples:
         query += tags[0]
-        for sent in sample["sents"]:
+        # Get the sentence number of the last action
+        max_acts = min(max_acts, len(sample["acts"])-1)
+        max_n_sents = sample["word2sent"][sample["acts"][max_acts]["act_idx"]]+1
+        for sent in sample["sents"][:max_n_sents]:
             query += " ".join(sent)+".\n"
 
         query += tags[1]
-        for act_dict in sample["acts"]:
+        for act_dict in sample["acts"][:max_acts]:
             objs = [sample["words"][wId] for wId in act_dict["obj_idxs"][0]]
             query += "{}({}), ".format(sample["words"][act_dict["act_idx"]].lower(), ",".join(objs))
 
@@ -46,7 +49,7 @@ for i in range(n_runs):
     true_acts_text = query[query.rfind(tags[1])+len(tags[1]):]
     true_acts_text.replace(",", "")
 
-    true_acts = [act.split("(")[0].strip() for act in true_acts_text.split("),")]
+    true_acts = [act.split("(")[0].strip() for act in true_acts_text.split("),") if act.split("(")[0].strip() != ""]
     # ---------------- Send GPT3 query --------------
     print("[+]: Sending query...")
     start = time.time()
@@ -69,7 +72,7 @@ for i in range(n_runs):
         continue
 
     gpt3_acts_text = text_response.split(tags[0])[0]
-    pred_acts = [act.split("(")[0].strip() for act in gpt3_acts_text.split("),")]
+    pred_acts = [act.split("(")[0].strip() for act in gpt3_acts_text.split("),") if act.split("(")[0].strip() != ""]
 
     true_acts_cpy = true_acts[:]
     totalTruth = len(true_acts)
@@ -83,7 +86,7 @@ for i in range(n_runs):
 
     precision = totalRight/totalTagged
     recall = totalRight/totalTruth
-    f1 = 2*precision*recall/(precision+recall)
+    f1 = 2*precision*recall/(precision+recall) if (precision+recall) > 0 else 0
     print("[{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}\n".format(i, precision, recall, f1))
 
     t_prec += precision
