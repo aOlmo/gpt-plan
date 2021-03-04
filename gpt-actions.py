@@ -4,20 +4,35 @@ import nltk
 import pickle
 import openai
 import random
+import re
 from nltk.stem import PorterStemmer, LancasterStemmer
 
 # TODO: Use threads for parallel execution
+# TODO: We can still finetune further making sure we include all actions from last sentence
+# TODO: Make Lancaster, Porter and none in same execution
 # ================= Params =================
 random.seed(42)
-gpt3_temp = 0.7 # Set to 0 for reproducibility
+gpt3_temp = 0.0 # Set to 0 for reproducibility
 gpt3_max_tokens = 150
 openai.api_key = os.environ["OPENAI_API_KEY"]
 n_examples = 2  # The amount of text cannot go over 2048
-tags = ["\n\nRECIPE: \n", "\nACTIONS: \n"]
+tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
 n_runs = 10
-max_acts = 15
-stemmer = PorterStemmer()
+max_acts = 10
+lancaster_stem = LancasterStemmer()
+porter_stem = PorterStemmer()
+stemmer = porter_stem
 # ==========================================
+
+def get_acts_objs(acts_text):
+    acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
+    objs_list = re.findall(r'\((.*?)\)', acts_text)
+
+    objs = []
+    for obj in objs_list:
+        objs += obj.split(",")
+
+    return acts, objs
 
 a = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
 b = pickle.load(open("EASDRL/data/win2k_labeled_text_data.pkl", "rb"))
@@ -25,9 +40,12 @@ c = pickle.load(open("EASDRL/data/cooking_labeled_text_data.pkl", "rb"))
 d = pickle.load(open("EASDRL/data/refined_cooking_data.pkl", "rb"))
 e = pickle.load(open("EASDRL/data/cooking_dependency.pkl", "rb"))
 
+c = a
+
 t_prec = 0
 t_rec = 0
 t_f1 = 0
+cnt = n_runs
 for i in range(n_runs):
     query = ""
     samples = random.sample(c, n_examples+1)
@@ -49,7 +67,7 @@ for i in range(n_runs):
     true_acts_text = query[query.rfind(tags[1])+len(tags[1]):]
     true_acts_text.replace(",", "")
 
-    true_acts = [act.split("(")[0].strip() for act in true_acts_text.split("),") if act.split("(")[0].strip() != ""]
+    true_acts, true_objs = get_acts_objs(true_acts_text)
     true_acts_stem = [stemmer.stem(w) for w in true_acts]
 
     # ---------------- Send GPT3 query --------------
@@ -71,10 +89,11 @@ for i in range(n_runs):
     # Process response
     if tags[0] not in text_response:
         print("[-]: Tag not found in response, continuing...")
+        cnt -= 1
         continue
 
     gpt3_acts_text = text_response.split(tags[0])[0]
-    pred_acts = [act.split("(")[0].strip() for act in gpt3_acts_text.split("),") if act.split("(")[0].strip() != ""]
+    pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
     pred_acts_stem = [stemmer.stem(w) for w in pred_acts]
 
     true_acts_cpy = true_acts_stem[:]
@@ -99,6 +118,6 @@ for i in range(n_runs):
 t_prec /= n_runs
 t_rec /= n_runs
 t_f1 /= n_runs
-print("Avgs over {} runs:\nPrecision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(n_runs, t_prec, t_rec, t_f1))
+print("Avgs over {} runs:\nPrecision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(cnt, t_prec, t_rec, t_f1))
 
 
