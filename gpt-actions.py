@@ -54,24 +54,25 @@ win = pickle.load(open("EASDRL/data/win2k_labeled_text_data.pkl", "rb"))
 cook = pickle.load(open("EASDRL/data/cooking_labeled_text_data.pkl", "rb"))
 _ = pickle.load(open("EASDRL/data/cooking_dependency.pkl", "rb"))
 
+# precision, recall, f1: [actions, objects]
 stemmers_data = {
     "Raw": {
         "stemmer": None,
-        "precision": 0,
-        "recall": 0,
-        "f1": 0
+        "precision": [0, 0],
+        "recall": [0, 0],
+        "f1": [0, 0]
     },
     "Porter": {
         "stemmer": PorterStemmer(),
-        "precision": 0,
-        "recall": 0,
-        "f1": 0
+        "precision": [0, 0],
+        "recall": [0, 0],
+        "f1": [0, 0]
     },
     "Lancaster": {
         "stemmer": LancasterStemmer(),
-        "precision": 0,
-        "recall": 0,
-        "f1": 0
+        "precision": [0, 0],
+        "recall": [0, 0],
+        "f1": [0, 0]
     }
 }
 
@@ -79,11 +80,13 @@ domain = cook
 cnt = n_runs
 for i in range(n_runs):
     query = ""
+    # Randomly sample text sequences from the domain
     samples = random.sample(domain, n_examples+1)
     for sample in samples:
         query += tags[0]
-        # Get the sentence number of the last action
+        # Restrict the amount of actions if needed
         max_acts = min(max_acts, len(sample["acts"])-1)
+        # Get the number of sentences based on the amount of actions
         max_n_sents = sample["word2sent"][sample["acts"][max_acts]["act_idx"]]+1
         for sent in sample["sents"][:max_n_sents]:
             query += " ".join(sent)+".\n"
@@ -116,7 +119,7 @@ for i in range(n_runs):
     text_response = response["choices"][0]["text"]
     # -----------------------------------------------
 
-    # Process response
+    # Process response and discard if GPT3 did not finish the generation
     if tags[0] not in text_response:
         print("[-]: Tag not found in response, continuing...")
         print(text_response)
@@ -131,19 +134,39 @@ for i in range(n_runs):
         if stemmer is not None:
             true_acts_stem = [stemmer.stem(w) for w in true_acts]
             pred_acts_stem = [stemmer.stem(w) for w in pred_acts]
+            true_objs_stem = [stemmer.stem(w) for w in true_objs]
+            pred_objs_stem = [stemmer.stem(w) for w in pred_objs]
         else:
             true_acts_stem, pred_acts_stem = true_acts, pred_acts
+            true_objs_stem, pred_objs_stem = true_objs, pred_objs
 
-        precision, recall, f1 = get_prec_rec_f1(true_acts_stem, pred_acts_stem)
-        stemmers_data[k]["precision"] += precision
-        stemmers_data[k]["recall"] += recall
-        stemmers_data[k]["f1"] += f1
+        acts_precision, acts_recall, acts_f1 = get_prec_rec_f1(true_acts_stem, pred_acts_stem)
+        objs_precision, objs_recall, objs_f1 = get_prec_rec_f1(true_objs_stem, pred_objs_stem)
 
-        print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(k, i, precision, recall, f1))
+        stemmers_data[k]["precision"][0] += acts_precision
+        stemmers_data[k]["recall"][0] += acts_recall
+        stemmers_data[k]["f1"][0] += acts_f1
+
+        stemmers_data[k]["precision"][1] += objs_precision
+        stemmers_data[k]["recall"][1] += objs_recall
+        stemmers_data[k]["f1"][1] += objs_f1
+
+        print("[{}-{}-acts]: "
+              "Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(k, i, acts_precision, acts_recall, acts_f1))
+        print("[{}-{}-objs]: "
+              "Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(k, i, objs_precision, objs_recall, objs_f1))
 
 for k in stemmers_data:
-    avg_precision = stemmers_data[k]["precision"]/cnt
-    avg_recall = stemmers_data[k]["recall"]/cnt
-    avg_f1 = stemmers_data[k]["f1"]/cnt
-    print("[{}] Avg over {} runs: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
+    avg_precision = stemmers_data[k]["precision"][0]/cnt
+    avg_recall = stemmers_data[k]["recall"][0]/cnt
+    avg_f1 = stemmers_data[k]["f1"][0]/cnt
+
+    print("[{}-acts] Avg over {} runs: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
+        k, cnt, avg_precision, avg_recall, avg_f1))
+
+    avg_precision = stemmers_data[k]["precision"][1] / cnt
+    avg_recall = stemmers_data[k]["recall"][1] / cnt
+    avg_f1 = stemmers_data[k]["f1"][1] / cnt
+
+    print("[{}-objs] Avg over {} runs: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
         k, cnt, avg_precision, avg_recall, avg_f1))
