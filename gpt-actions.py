@@ -35,19 +35,21 @@ def get_prec_rec_f1(true_list, pred_list):
 
     return precision, recall, f1
 
+# TODO: Make shorter sentences
 # TODO: Use threads for parallel execution
 # TODO: We can still finetune further making sure we include all actions from last sentence
 # TODO: Make data already in CSV format for better postprocessing + save outputs from
 # TODO: Put params in config file
 # ================= Params =================
 random.seed(42)
+gpt3_engine = "curie"
 gpt3_temp = 0.0  # Set to 0 for reproducibility
-gpt3_max_tokens = 150
+gpt3_max_tokens = 200
 openai.api_key = os.environ["OPENAI_API_KEY"]
 n_examples = 2  # The amount of text cannot go over 2048
 tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
 n_runs = 10
-max_acts = 10
+init_max_acts = 200
 # ==========================================
 
 wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
@@ -76,27 +78,39 @@ stemmers_data = {
         "f1": [0, 0]
     }
 }
-
 domain = cook
 cnt = n_runs
 for _ in range(n_runs):
     query = ""
     # Randomly sample text sequences from the domain
     samples = random.sample(domain, n_examples+1)
+    # samples = domain[1:n_examples]
+    # samples.append(domain[0])
     for sample in samples:
         query += tags[0]
         # Restrict the amount of actions if needed
-        max_acts = min(max_acts, len(sample["acts"])-1)
+        max_acts = min(init_max_acts, len(sample["acts"])-1)
         # Get the number of sentences based on the amount of actions
         max_n_sents = sample["word2sent"][sample["acts"][max_acts]["act_idx"]]+1
         for sent in sample["sents"][:max_n_sents]:
             query += " ".join(sent)+".\n"
 
         query += tags[1]
+        #TODO: Put Exclusive actions like (act1() or act2() or act3())
+        true_acts_opt = []
         for act_dict in sample["acts"][:max_acts]:
-            objs = [sample["words"][wId] for wId in act_dict["obj_idxs"][0]]
-            query += "{}({}), ".format(sample["words"][act_dict["act_idx"]].lower(), ",".join(objs))
+            ws = sample["words"]
+            if act_dict['act_type'] == 3:
+                act_dict['related_acts'].append(act_dict['act_idx'])
+                excl_acts_ws = [ws[wId].lower() for wId in act_dict['related_acts']]
+                excl_acts_ws.sort()
+                true_acts_opt.append(excl_acts_ws)
 
+            objs = [ws[wId] for wId in act_dict["obj_idxs"][0]]
+            query += "{}({}), ".format(ws[act_dict["act_idx"]].lower(), ",".join(objs))
+
+    if len(true_acts_opt) > 0:
+        true_acts_opt = set(tuple(i) for i in true_acts_opt)
     # Remove everything after last ACTIONS tag and get the true actions
     f_query = query[:query.rfind(tags[1])]+tags[1]
     true_acts_text = query[query.rfind(tags[1])+len(tags[1]):]
@@ -108,7 +122,7 @@ for _ in range(n_runs):
     print("[+]: Sending query...")
     start = time.time()
     response = openai.Completion.create(
-        engine="curie",
+        engine=gpt3_engine,
         prompt=f_query,
         temperature=gpt3_temp,
         max_tokens=gpt3_max_tokens,
@@ -130,6 +144,8 @@ for _ in range(n_runs):
     # Get just the actions
     gpt3_acts_text = text_response.split(tags[0])[0]
     pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
+
+    # Get Essential list removing the Exclusive actions
 
     for i, (true_list, pred_list) in enumerate(zip([true_acts, true_objs], [pred_acts, pred_objs])):
         name = "acts" if i == 0 else "objs"
