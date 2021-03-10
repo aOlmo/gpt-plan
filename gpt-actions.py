@@ -7,6 +7,7 @@ import re
 
 from nltk.stem import PorterStemmer, LancasterStemmer
 
+
 def get_acts_objs(acts_text):
     acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
     objs_list = re.findall(r'\((.*?)\)', acts_text)
@@ -17,9 +18,10 @@ def get_acts_objs(acts_text):
 
     return acts, objs
 
-def get_prec_rec_f1(true_list, pred_list):
+
+def get_prec_rec_f1(true_list, pred_list, true_list_excl):
     true_list_cpy = true_list[:]
-    totalTruth = len(true_list)
+    totalTruth = len(true_list)+len(true_list_excl)  # Add the Exclusive actions too
     totalTagged = len(pred_list)
     totalRight = 0
 
@@ -29,27 +31,38 @@ def get_prec_rec_f1(true_list, pred_list):
             totalRight += 1
             true_list_cpy.remove(act)
 
+    # Count how many exclusive actions are in the predicted list
+    # and count as good only if one of them appears in the list
+    for excl_acts in true_list_excl:
+        c = 0
+        for act in excl_acts:
+            if act in pred_list:
+                c += 1
+        if c == 1:
+            totalRight += 1
+
     precision = totalRight / totalTagged
     recall = totalRight / totalTruth
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
     return precision, recall, f1
 
+
 # TODO: Make shorter sentences
-# TODO: Use threads for parallel execution
+# TODO: Put Exclusive actions like (act1() or act2() or act3())
 # TODO: We can still finetune further making sure we include all actions from last sentence
-# TODO: Make data already in CSV format for better postprocessing + save outputs from
+# TODO: Make data already in CSV format for better postprocessing
 # TODO: Put params in config file
 # ================= Params =================
 random.seed(42)
 gpt3_engine = "curie"
 gpt3_temp = 0.0  # Set to 0 for reproducibility
-gpt3_max_tokens = 200
+gpt3_max_tokens = 150
 openai.api_key = os.environ["OPENAI_API_KEY"]
 n_examples = 2  # The amount of text cannot go over 2048
 tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
-n_runs = 10
-init_max_acts = 200
+n_runs = 40
+init_max_acts = 20
 # ==========================================
 
 wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
@@ -87,36 +100,36 @@ for _ in range(n_runs):
     # samples = domain[1:n_examples]
     # samples.append(domain[0])
     for sample in samples:
+        true_acts_excl = set()
+        true_acts, true_acts_ids, true_objs = [], [], []
+
         query += tags[0]
-        # Restrict the amount of actions if needed
-        max_acts = min(init_max_acts, len(sample["acts"])-1)
+        # Restrict the amount of actions if needed -----------------------
+        max_acts = min(init_max_acts, len(sample["acts"]) - 1)
         # Get the number of sentences based on the amount of actions
-        max_n_sents = sample["word2sent"][sample["acts"][max_acts]["act_idx"]]+1
+        max_n_sents = sample["word2sent"][sample["acts"][max_acts]["act_idx"]] + 1
         for sent in sample["sents"][:max_n_sents]:
-            query += " ".join(sent)+".\n"
+            query += " ".join(sent) + ".\n"
+        # -----------------------------------------------------------------
 
         query += tags[1]
-        #TODO: Put Exclusive actions like (act1() or act2() or act3())
-        true_acts_opt = []
         for act_dict in sample["acts"][:max_acts]:
             ws = sample["words"]
             if act_dict['act_type'] == 3:
                 act_dict['related_acts'].append(act_dict['act_idx'])
                 excl_acts_ws = [ws[wId].lower() for wId in act_dict['related_acts']]
                 excl_acts_ws.sort()
-                true_acts_opt.append(excl_acts_ws)
+                true_acts_excl.add(tuple(excl_acts_ws))
 
-            objs = [ws[wId] for wId in act_dict["obj_idxs"][0]]
-            query += "{}({}), ".format(ws[act_dict["act_idx"]].lower(), ",".join(objs))
+            true_acts_ids.append(act_dict['act_idx'])
+            true_acts.append(ws[act_dict['act_idx']].lower())
+            cur_objs = [ws[wId] for wId in act_dict["obj_idxs"][0]]
+            true_objs += cur_objs
 
-    if len(true_acts_opt) > 0:
-        true_acts_opt = set(tuple(i) for i in true_acts_opt)
-    # Remove everything after last ACTIONS tag and get the true actions
-    f_query = query[:query.rfind(tags[1])]+tags[1]
-    true_acts_text = query[query.rfind(tags[1])+len(tags[1]):]
-    true_acts_text.replace(",", "")
+            query += "{}({}), ".format(ws[act_dict["act_idx"]].lower(), ",".join(cur_objs))
 
-    true_acts, true_objs = get_acts_objs(true_acts_text)
+    # Remove everything after last ACTIONS tag
+    f_query = query[:query.rfind(tags[1])] + tags[1]
 
     # ---------------- Send GPT3 query --------------
     print("[+]: Sending query...")
@@ -130,7 +143,7 @@ for _ in range(n_runs):
         frequency_penalty=0,
         presence_penalty=0
     )
-    print("[+]: {:.2f}s elapsed".format(time.time()-start))
+    print("[+]: {:.2f}s elapsed".format(time.time() - start))
     text_response = response["choices"][0]["text"]
     # -----------------------------------------------
 
@@ -145,35 +158,25 @@ for _ in range(n_runs):
     gpt3_acts_text = text_response.split(tags[0])[0]
     pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
-    # Get Essential list removing the Exclusive actions
-
-    for i, (true_list, pred_list) in enumerate(zip([true_acts, true_objs], [pred_acts, pred_objs])):
+    for i, (true_list, pred_list, true_list_excl) in enumerate(zip([true_acts, true_objs], [pred_acts, pred_objs], [list(true_acts_excl), []])):
         name = "acts" if i == 0 else "objs"
-        for k in stemmers_data:
-            stemmer = stemmers_data[k]["stemmer"]
-            if stemmer is not None:
-                true_list_stem = [stemmer.stem(w) for w in true_list]
-                pred_list_stem = [stemmer.stem(w) for w in pred_list]
-            else:
-                true_list_stem, pred_list_stem = true_list, pred_list
 
-            list_precision, list_recall, list_f1 = get_prec_rec_f1(true_list_stem, pred_list_stem)
+        list_precision, list_recall, list_f1 = get_prec_rec_f1(true_list, pred_list, true_list_excl)
 
-            stemmers_data[k]["precision"][i] += list_precision
-            stemmers_data[k]["recall"][i] += list_recall
-            stemmers_data[k]["f1"][i] += list_f1
+        stemmers_data["Raw"]["precision"][i] += list_precision
+        stemmers_data["Raw"]["recall"][i] += list_recall
+        stemmers_data["Raw"]["f1"][i] += list_f1
 
-            print("[{}-{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                k, i, name, list_precision, list_recall, list_f1
-            ))
+        print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+            i, name, list_precision, list_recall, list_f1
+        ))
 
 print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
 for i, name in enumerate(["acts", "objs"]):
-    for k in stemmers_data:
-        avg_precision = stemmers_data[k]["precision"][i]/cnt
-        avg_recall = stemmers_data[k]["recall"][i]/cnt
-        avg_f1 = stemmers_data[k]["f1"][i]/cnt
+    avg_precision = stemmers_data["Raw"]["precision"][i] / cnt
+    avg_recall = stemmers_data["Raw"]["recall"][i] / cnt
+    avg_f1 = stemmers_data["Raw"]["f1"][i] / cnt
 
-        print("[{}-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
-            k, name, avg_precision, avg_recall, avg_f1
-        ))
+    print("[{}-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
+        "Raw", name, avg_precision, avg_recall, avg_f1
+    ))
