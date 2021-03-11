@@ -24,31 +24,32 @@ def get_acts_objs(acts_text):
 
 
 def get_prec_rec_f1(test_true, pred_acts, pred_objs):
-    # total_truth = len(test_true["essentials"]["acts"])  # Add the Exclusive actions too
-    # total_tagged = len(pred_list)
-    # total_right = 0
 
-    # true_list_cpy = true_list[:]
-    # total_truth = len(true_list)  # Add the Exclusive actions too
-    # total_tagged = len(pred_list)
-    # total_right = 0
-    #
-    # # Check if the current action is in the list of gt actions, if it is, remove from the truth list
-    # for act in pred_list:
-    #     if act in true_list_cpy:
-    #         total_right += 1
-    #         true_list_cpy.remove(act)
-    #
-    # # Count how many exclusive actions are in the predicted list
-    # # and count as good only if one of them appears in the list
-    # # for excl_acts in true_list_excl:
-    # #     c = 0
-    # #     for act in excl_acts:
-    # #         if act in pred_list:
-    # #             c += 1
-    # #     if c == 1:
-    # #         total_right += 1
+    es_acts = test_true["essential"]["acts"].copy()
+    op_acts = test_true["optional"]["acts"].copy()
+    ex_acts = test_true["exclusive"]["acts"].copy()
+    words = test_data["words"]
 
+    total_right = 0
+    total_tagged = len(pred_acts)
+    total_truth = len(es_acts)+len(ex_acts)
+
+    right_es, right_op, right_ex = 0, 0, 0
+    for act in pred_acts:
+        if act in es_acts:
+            right_es += 1
+            es_acts.remove(act)  # Removes from the left
+            continue
+
+        if act in op_acts:
+            right_op += 1
+            op_acts.remove(act)
+
+    for act_list in ex_acts:
+        act_list_w = [words[w_id] for w_id in act_list]
+        right_ex += 1 if len(set(act_list_w).intersection(pred_acts)) == 1 else 0
+
+    total_right = right_es + right_op + right_ex
     precision = total_right / total_tagged
     recall = total_right / total_truth
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
@@ -153,8 +154,8 @@ def get_test_dict(data):
     acts2objs = data["acts2objs"]
     for (a1, a2) in test_dict["exclusive"]["acts"]:
         test_dict["exclusive"]["objs"].append([acts2objs[a1], acts2objs[a2]])
-        test_dict["exclusive"]["act_obj"][a1] = acts2objs[a1]
-        test_dict["exclusive"]["act_obj"][a2] = acts2objs[a2]
+        # test_dict["exclusive"]["act_obj"][a1] = acts2objs[a1]
+        # test_dict["exclusive"]["act_obj"][a2] = acts2objs[a2]
 
     #TODO: Continue processing actions and objects data
     types = list(test_dict.keys())
@@ -168,18 +169,6 @@ def get_test_dict(data):
     return test_dict
 
 
-# ================= Params =================
-random.seed(42)
-gpt3_engine = "curie"
-gpt3_temp = 0.0  # Set to 0 for reproducibility
-gpt3_max_tokens = 150
-openai.api_key = os.environ["OPENAI_API_KEY"]
-n_examples = 2  # The amount of text cannot go over 2048
-tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
-n_runs = 40
-init_max_acts = 20
-# ==========================================
-
 wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
 win = pickle.load(open("EASDRL/data/win2k_labeled_text_data.pkl", "rb"))
 cook = pickle.load(open("EASDRL/data/cooking_labeled_text_data.pkl", "rb"))
@@ -191,13 +180,28 @@ results = {
     "recall": [0, 0],
     "f1": [0, 0]
 }
+# ================= Params =================
+random.seed(42)
+gpt3_engine = "curie" # davinci, babbage
+gpt3_temp = 0.0  # Set to 0 for reproducibility
+gpt3_max_tokens = 150
+openai.api_key = os.environ["OPENAI_API_KEY"]
+n_examples = 2  # The amount of text cannot go over 2048
+tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
+n_runs = 10
+init_max_acts = 20
 domain = cook
 cnt = n_runs
-for _ in range(n_runs):
+# ==========================================
+
+
+for i in range(n_runs):
     # Randomly sample text sequences from the domain
-    # samples = random.sample(domain, n_examples + 1)
-    train_samples = domain[1:n_examples+1]
-    test_sample = domain[0] # domain[n_examples:n_examples + 1]
+    samples = random.sample(domain, n_examples + 1)
+    # train_samples = domain[1:n_examples+1]
+    # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
+    train_samples = samples[:n_examples]
+    test_sample = samples[n_examples: n_examples+1][0]
 
     query = ""
     for sample in train_samples:
@@ -215,18 +219,25 @@ for _ in range(n_runs):
 
     # ----- Send query to GPT3 and check correct output -----
     gpt3_response = send_query_gpt3(query)
-    if tags[0].strip() not in gpt3_response:
-        print("[-]: Tag not found in response, continuing...")
-        print(gpt3_response)
-        cnt -= 1
-        continue
+    # if tags[0].strip() not in gpt3_response:
+    #     print("[-]: Tag not found in response, continuing...")
+    #     print(gpt3_response)
+    #     cnt -= 1
+    #     continue
     # -------------------------------------------------------
 
     # Get just the actions
-    gpt3_acts_text = gpt3_response.split(tags[0])[0]
+    gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
     pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
     prec, rec, f1 = get_prec_rec_f1(test_true_dict, pred_acts, pred_objs)
+    results["precision"][0] += prec
+    results["recall"][0] += rec
+    results["f1"][0] += f1
+
+    print("[{}-acts]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+        i, prec, rec, f1
+    ))
 
 print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
 for i, name in enumerate(["acts", "objs"]):
