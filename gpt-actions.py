@@ -8,9 +8,7 @@ import re
 
 # TODO: Make shorter sentences
 # TODO: Put Exclusive actions like (act1() or act2() or act3())
-# TODO: We can still finetune further making sure we include all actions from last sentence
 # TODO: Make data already in CSV format for better postprocessing
-# TODO: Put params in config file
 
 def get_acts_objs(acts_text):
     acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
@@ -23,31 +21,37 @@ def get_acts_objs(acts_text):
     return acts, objs
 
 
-def get_prec_rec_f1(test_true, pred_acts, pred_objs):
-
-    es_acts = test_true["essential"]["acts"].copy()
-    op_acts = test_true["optional"]["acts"].copy()
-    ex_acts = test_true["exclusive"]["acts"].copy()
+def compute_f1(true_dict, preds, type):
+    essential = true_dict["essential"][type].copy()
+    optional = true_dict["optional"][type].copy()
+    exclusive = true_dict["exclusive"][type].copy()
     words = test_data["words"]
 
-    total_right = 0
-    total_tagged = len(pred_acts)
-    total_truth = len(es_acts)+len(ex_acts)
+    # Flatten the data for objects
+    if type == "objs":
+        essential = [item for sublist in essential for item in sublist]
+        optional = [item for sublist in optional for item in sublist]
+        exclusive = []
+
+    total_tagged = len(preds)
+    total_truth = len(essential) + len(exclusive)
 
     right_es, right_op, right_ex = 0, 0, 0
-    for act in pred_acts:
-        if act in es_acts:
+    for item in preds:
+        if item in essential:
             right_es += 1
-            es_acts.remove(act)  # Removes from the left
+            essential.remove(item)  # Removes from the left
             continue
 
-        if act in op_acts:
+        if item in optional:
             right_op += 1
-            op_acts.remove(act)
+            total_truth += 1
+            optional.remove(item)
 
-    for act_list in ex_acts:
-        act_list_w = [words[w_id] for w_id in act_list]
-        right_ex += 1 if len(set(act_list_w).intersection(pred_acts)) == 1 else 0
+    if type == "acts":
+        for item_list in exclusive:
+            item_list_w = [words[w_id] for w_id in item_list]
+            right_ex += 1 if len(set(item_list_w).intersection(preds)) == 1 else 0
 
     total_right = right_es + right_op + right_ex
     precision = total_right / total_tagged
@@ -157,7 +161,6 @@ def get_test_dict(data):
         # test_dict["exclusive"]["act_obj"][a1] = acts2objs[a1]
         # test_dict["exclusive"]["act_obj"][a2] = acts2objs[a2]
 
-    #TODO: Continue processing actions and objects data
     types = list(test_dict.keys())
     for (act, objs, type), (act_id, objs_id, _) in zip(data["data_str"], data["data_id"]):
         es_op_ex = test_dict[types[type - 1]]
@@ -182,7 +185,7 @@ results = {
 }
 # ================= Params =================
 random.seed(42)
-gpt3_engine = "curie" # davinci, babbage
+gpt3_engine = "babbage"  # davinci, curie, babbage, ada
 gpt3_temp = 0.0  # Set to 0 for reproducibility
 gpt3_max_tokens = 150
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -198,7 +201,7 @@ cnt = n_runs
 for i in range(n_runs):
     # Randomly sample text sequences from the domain
     samples = random.sample(domain, n_examples + 1)
-    # train_samples = domain[1:n_examples+1]
+    # train_samples = domain[1:n_examples + 1]
     # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
     train_samples = samples[:n_examples]
     test_sample = samples[n_examples: n_examples+1][0]
@@ -230,14 +233,16 @@ for i in range(n_runs):
     gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
     pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
-    prec, rec, f1 = get_prec_rec_f1(test_true_dict, pred_acts, pred_objs)
-    results["precision"][0] += prec
-    results["recall"][0] += rec
-    results["f1"][0] += f1
+    for i, (type, preds) in enumerate(zip(["acts", "objs"], [pred_acts, pred_objs])):
+        prec, rec, f1 = compute_f1(test_true_dict, preds, type)
 
-    print("[{}-acts]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-        i, prec, rec, f1
-    ))
+        results["precision"][i] += prec
+        results["recall"][i] += rec
+        results["f1"][i] += f1
+
+        print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+            i, type, prec, rec, f1
+        ))
 
 print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
 for i, name in enumerate(["acts", "objs"]):
@@ -248,3 +253,18 @@ for i, name in enumerate(["acts", "objs"]):
     print("[{}-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
         "Raw", name, avg_precision, avg_recall, avg_f1
     ))
+
+###############################################
+# Exclusive objs
+# for i, sublist in enumerate(exclusive):
+#     for j, subsub in enumerate(sublist):
+#         exclusive[i][j] = [words[i] for i in subsub]
+#     ...
+#     ...
+#     elif type == "objs":
+#         max_right = 0
+#         for excl in exclusive:
+#             for pairs in excl:
+#                 a1_objs, a2_objs = pairs[0], pairs[1]
+#                 max_right = max(len(set(a1_objs).intersection(preds)), len(set(a2_objs).intersection(preds)))
+###############################################
