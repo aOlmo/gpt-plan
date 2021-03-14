@@ -21,17 +21,19 @@ def get_acts_objs(acts_text):
     return acts, objs
 
 
-def compute_f1(true_dict, preds, type):
+def compute_f1_acts(true_dict, preds):
+    true_objs = []
+    type = "acts"
     essential = true_dict["essential"][type].copy()
     optional = true_dict["optional"][type].copy()
     exclusive = true_dict["exclusive"][type].copy()
     words = test_data["words"]
 
     # Flatten the data for objects
-    if type == "objs":
-        essential = [item for sublist in essential for item in sublist]
-        optional = [item for sublist in optional for item in sublist]
-        exclusive = []
+    # if type == "objs":
+    #     essential = [item for sublist in essential for item in sublist]
+    #     optional = [item for sublist in optional for item in sublist]
+    #     exclusive = []
 
     total_tagged = len(preds)
     total_truth = len(essential) + len(exclusive)
@@ -40,26 +42,46 @@ def compute_f1(true_dict, preds, type):
     for item in preds:
         if item in essential:
             right_es += 1
+            true_objs += true_dict["essential"]["act_obj"][essential.index(item)][1]    # Add the corresponding objects
             essential.remove(item)  # Removes from the left
-            continue
 
-        if item in optional:
+        elif item in optional:
             right_op += 1
             total_truth += 1
+            true_objs += true_dict["optional"]["act_obj"][optional.index(item)][1]      # Add the corresponding objects
             optional.remove(item)
 
-    if type == "acts":
-        for item_list in exclusive:
-            item_list_w = [words[w_id] for w_id in item_list]
-            right_ex += 1 if len(set(item_list_w).intersection(preds)) == 1 else 0
+    for item_list in exclusive:
+        item_list_w = [words[w_id] for w_id in item_list]
+        intersect = set(item_list_w).intersection(preds)
+        if len(intersect) == 1:
+            right_ex += 1
+            i = item_list_w.index(list(intersect)[0])           # Find the object indices of the matced action
+            act_objs = [words[w_id] for w_id in test_data["acts2objs"][item_list[i]]]
+            true_objs += act_objs
 
     total_right = right_es + right_op + right_ex
     precision = total_right / total_tagged
     recall = total_right / total_truth
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
-    return precision, recall, f1
+    return precision, recall, f1, true_objs
 
+def compute_f1_objs(true, preds):
+    total_right = 0
+    total_truth = len(true)
+    total_tagged = len(preds)
+    true_cpy = true.copy()
+    for item in preds:
+        if item in true_cpy:
+            total_right += 1
+            true_cpy.remove(item)
+
+    precision = total_right / total_tagged
+    recall = total_right / total_truth
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+
+    return precision, recall, f1
 
 def get_data(sample):
     # Action | (Objs) | Type
@@ -185,7 +207,7 @@ results = {
 }
 # ================= Params =================
 random.seed(42)
-gpt3_engine = "babbage"  # davinci, curie, babbage, ada
+gpt3_engine = "davinci"  # davinci, curie, babbage, ada
 gpt3_temp = 0.0  # Set to 0 for reproducibility
 gpt3_max_tokens = 150
 openai.api_key = os.environ["OPENAI_API_KEY"]
@@ -195,6 +217,7 @@ n_runs = 10
 init_max_acts = 20
 domain = cook
 cnt = n_runs
+count_unfinished_responses = True
 # ==========================================
 
 
@@ -222,27 +245,34 @@ for i in range(n_runs):
 
     # ----- Send query to GPT3 and check correct output -----
     gpt3_response = send_query_gpt3(query)
-    # if tags[0].strip() not in gpt3_response:
-    #     print("[-]: Tag not found in response, continuing...")
-    #     print(gpt3_response)
-    #     cnt -= 1
-    #     continue
+    if not count_unfinished_responses and tags[0].strip() not in gpt3_response:
+        print("[-]: Tag not found in response, continuing...")
+        print(gpt3_response)
+        cnt -= 1
+        continue
     # -------------------------------------------------------
 
     # Get just the actions
     gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
     pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
-    for i, (type, preds) in enumerate(zip(["acts", "objs"], [pred_acts, pred_objs])):
-        prec, rec, f1 = compute_f1(test_true_dict, preds, type)
+    prec, rec, f1, true_objs = compute_f1_acts(test_true_dict, pred_acts)
+    results["precision"][0] += prec
+    results["recall"][0] += rec
+    results["f1"][0] += f1
 
-        results["precision"][i] += prec
-        results["recall"][i] += rec
-        results["f1"][i] += f1
+    print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+        i, "acts", prec, rec, f1
+    ))
 
-        print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-            i, type, prec, rec, f1
-        ))
+    prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
+    results["precision"][1] += prec
+    results["recall"][1] += rec
+    results["f1"][1] += f1
+
+    print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+        i, "objs", prec, rec, f1
+    ))
 
 print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
 for i, name in enumerate(["acts", "objs"]):
