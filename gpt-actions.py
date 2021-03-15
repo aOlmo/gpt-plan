@@ -10,8 +10,6 @@ import numpy as np
 
 # TODO: Handpick examples that display optional, exclusive and essential actions
 # TODO: Put Exclusive actions like (act1() or act2() or act3())
-# TODO: Make data already in CSV format for better postprocessing
-# TODO: Make shorter sentences
 # TODO: Test optional objects better
 def get_acts_objs(acts_text):
     acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
@@ -82,14 +80,14 @@ def compute_f1_objs(true, preds):
     return precision, recall, f1
 
 
-def get_data(sample):
+def get_data(sample, max_sents):
     # Action | (Objs) | Type
     data = {
         "data_id": [],
         "data_str": [],
         "related": {},
         "acts2objs": {},
-        "sents": sample["sents"],
+        "sents": [],
         "words": sample["words"],
         "word2sent": sample["word2sent"]
     }
@@ -99,8 +97,16 @@ def get_data(sample):
     related = data["related"]
     acts2objs = data["acts2objs"]
     ws = sample["words"]
+
+    # Get a maximum amount of sentences
+    last_w, max_sents = -1, min(max_sents, len(sample["sents"]))
+    for s in sample["sents"][:max_sents]:
+        last_w += len(s)
+        data["sents"].append(s)
+
     for act_dict in sample["acts"]:
         act_idx = act_dict['act_idx']
+        if act_idx > last_w: break
         obj_idxs = act_dict['obj_idxs'][0]
 
         related[act_idx] = act_dict["related_acts"]
@@ -128,8 +134,7 @@ def get_query_strs(data):
 
 
 def send_query_gpt3(query):
-    # ---------------- Send GPT3 query --------------
-    print("[+]: Sending query...")
+    print("[+]: Sending query...", end=" ")
     start = time.time()
     response = openai.Completion.create(
         engine=gpt3_engine,
@@ -140,9 +145,8 @@ def send_query_gpt3(query):
         frequency_penalty=0,
         presence_penalty=0
     )
-    print("[+]: {:.2f}s elapsed".format(time.time() - start))
+    print("{:.2f}s elapsed".format(time.time() - start))
     text_response = response["choices"][0]["text"]
-    # -----------------------------------------------
 
     return text_response
 
@@ -199,17 +203,10 @@ if __name__ == '__main__':
     cook = pickle.load(open("EASDRL/data/cooking_labeled_text_data.pkl", "rb"))
     _ = pickle.load(open("EASDRL/data/cooking_dependency.pkl", "rb"))
 
-    # precision, recall, f1: [actions, objects]
-    results = {
-        "precision": [0, 0],
-        "recall": [0, 0],
-        "f1": [0, 0]
-    }
-
     # ================= Params =================
     random.seed(42)
     ENGINES = ["babbage", "ada"] #["davinci", "curie", "babbage", "ada"]
-    DOMAINS = {"cook": cook, "wiki": wiki, "win": win}
+    DOMAINS = {"cook": cook, "win": win}
 
     gpt3_engine = "babbage"  # davinci, curie, babbage, ada
     gpt3_temp = 0.0  # Set to 0 for reproducibility
@@ -217,18 +214,25 @@ if __name__ == '__main__':
 
     openai.api_key = os.environ["OPENAI_API_KEY"]
     n_examples = 2  # The amount of text cannot go over 2048
-    tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     n_runs = 1
-    init_max_acts = 20
-    domain_name = "cook"
+    max_sents = 10
     cnt = n_runs
     count_unfinished_responses = True
+    tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
 
     for gpt3_engine in ENGINES:
-        for d in DOMAINS:
-            domain = DOMAINS[d]
+        for domain_name in DOMAINS:
+            domain = DOMAINS[domain_name]
+            # precision, recall, f1: [actions, objects]
+            results = {"precision": [0, 0], "recall": [0, 0], "f1": [0, 0]}
+
+            print("ENGINE: {} | DOMAIN: {}".format(gpt3_engine, domain_name))
+            print("-" * 28)
+
             for i in range(n_runs):
+                print("RUN {}:".format(i))
+
                 # Randomly sample text sequences from the domain
                 samples = random.sample(domain, n_examples + 1)
                 # train_samples = domain[1:n_examples + 1]
@@ -238,11 +242,11 @@ if __name__ == '__main__':
 
                 query = ""
                 for sample in train_samples:
-                    data_sample = get_data(sample)
+                    data_sample = get_data(sample, max_sents)
                     text_str, acts_str = get_query_strs(data_sample)
                     query += tags[0] + text_str + tags[1] + acts_str
 
-                test_data = get_data(test_sample)
+                test_data = get_data(test_sample, max_sents)
                 text_str_test, _ = get_query_strs(test_data)
 
                 query += tags[0] + text_str_test + tags[1]
@@ -268,35 +272,39 @@ if __name__ == '__main__':
                 results["recall"][0] += rec
                 results["f1"][0] += f1
 
-                print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                    i, "acts", prec, rec, f1
-                ))
+                # print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+                #     i, "acts", prec, rec, f1
+                # ))
 
                 prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
                 results["precision"][1] += prec
                 results["recall"][1] += rec
                 results["f1"][1] += f1
 
-                print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                    i, "objs", prec, rec, f1
-                ))
+                # print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+                #     i, "objs", prec, rec, f1
+                # ))
 
             x = []
-            print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
+            print("[+]: Computing averages over {} runs".format(cnt))
             for i, name in enumerate(["acts", "objs"]):
                 avg_precision = results["precision"][i] / cnt
                 avg_recall = results["recall"][i] / cnt
                 avg_f1 = results["f1"][i] / cnt
 
-                print("[{}-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
-                    "Raw", name, avg_precision, avg_recall, avg_f1
+                print("[{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
+                    name, avg_precision, avg_recall, avg_f1
                 ))
+
             prec, rec, f1 = results["precision"], results["recall"], results["f1"]
             x = [list(DOMAINS.keys()).index(domain_name), ENGINES.index(gpt3_engine),
                  n_runs, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
 
+            ########### Save data ###########
+            print("[+]: Saving data \n\n")
             cols = ["domain", "engine", "runs", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
             new_data = pd.DataFrame(np.array(x).reshape(1, -1), columns=cols)
             df = pd.read_csv("data.csv") if os.path.exists("data.csv") else new_data
             df = df.append(new_data)
             df.to_csv("data.csv", index=False)
+            #################################
