@@ -51,7 +51,7 @@ def compute_f1_acts(true_dict, preds):
         # There can only appear 1 exclusive action amongst the predictions
         if len(intersect) == 1:
             right_ex += 1
-            i = item_list_w.index(list(intersect)[0])           # Find the object indices of the matced action
+            i = item_list_w.index(list(intersect)[0])           # Find the object indices of the matched action
             act_objs = [words[w_id] for w_id in test_data["acts2objs"][item_list[i]]]
             true_objs += act_objs
 
@@ -68,6 +68,10 @@ def compute_f1_objs(true, preds):
     total_truth = len(true)
     total_tagged = len(preds)
     true_cpy = true.copy()
+
+    if total_truth == 0 or total_tagged == 0:
+        return 0.0, 0.0, 0.0
+
     for item in preds:
         if item in true_cpy:
             total_right += 1
@@ -98,15 +102,15 @@ def get_data(sample, max_sents):
     acts2objs = data["acts2objs"]
     ws = sample["words"]
 
-    # Get a maximum amount of sentences
-    last_w, max_sents = -1, min(max_sents, len(sample["sents"]))
+    # Get maximum word id of the last action in the last sentence
+    last_w, max_sents = 0, min(max_sents, len(sample["sents"]))
     for s in sample["sents"][:max_sents]:
         last_w += len(s)
         data["sents"].append(s)
 
     for act_dict in sample["acts"]:
         act_idx = act_dict['act_idx']
-        if act_idx > last_w: break
+        if act_idx > last_w-1: break
         obj_idxs = act_dict['obj_idxs'][0]
 
         related[act_idx] = act_dict["related_acts"]
@@ -134,7 +138,7 @@ def get_query_strs(data):
 
 
 def send_query_gpt3(query):
-    print("[+]: Sending query...", end=" ")
+    print("Sending query...", end=" ")
     start = time.time()
     response = openai.Completion.create(
         engine=gpt3_engine,
@@ -181,10 +185,8 @@ def get_test_dict(data):
     test_dict["exclusive"]["acts"] = list(acts)
 
     acts2objs = data["acts2objs"]
-    for (a1, a2) in test_dict["exclusive"]["acts"]:
-        test_dict["exclusive"]["objs"].append([acts2objs[a1], acts2objs[a2]])
-        # test_dict["exclusive"]["act_obj"][a1] = acts2objs[a1]
-        # test_dict["exclusive"]["act_obj"][a2] = acts2objs[a2]
+    for acts in test_dict["exclusive"]["acts"]:
+        test_dict["exclusive"]["objs"].append([acts2objs[act] for act in acts])
 
     types = list(test_dict.keys())
     for (act, objs, type), (act_id, objs_id, _) in zip(data["data_str"], data["data_id"]):
@@ -205,17 +207,18 @@ if __name__ == '__main__':
 
     # ================= Params =================
     random.seed(42)
-    ENGINES = ["babbage", "ada"] #["davinci", "curie", "babbage", "ada"]
-    DOMAINS = {"cook": cook, "win": win}
+    ENGINES = ["babbage", "ada"]  #["davinci", "curie", "babbage", "ada"]
+    DOMAINS = {"win": win, "cook": cook, "wiki": wiki}
 
     gpt3_engine = "babbage"  # davinci, curie, babbage, ada
     gpt3_temp = 0.0  # Set to 0 for reproducibility
     gpt3_max_tokens = 150
 
+    results_file = "data.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
     n_examples = 2  # The amount of text cannot go over 2048
     n_runs = 1
-    max_sents = 10
+    max_sents = 15
     cnt = n_runs
     count_unfinished_responses = True
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
@@ -231,7 +234,7 @@ if __name__ == '__main__':
             print("-" * 28)
 
             for i in range(n_runs):
-                print("RUN {}:".format(i))
+                print("[+] RUN {}:".format(i), end=" ")
 
                 # Randomly sample text sequences from the domain
                 samples = random.sample(domain, n_examples + 1)
@@ -272,28 +275,29 @@ if __name__ == '__main__':
                 results["recall"][0] += rec
                 results["f1"][0] += f1
 
-                # print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                #     i, "acts", prec, rec, f1
-                # ))
+                print("[acts] Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+                    prec, rec, f1
+                ))
 
                 prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
                 results["precision"][1] += prec
                 results["recall"][1] += rec
                 results["f1"][1] += f1
 
-                # print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                #     i, "objs", prec, rec, f1
-                # ))
+                print("[objs] Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+                    prec, rec, f1
+                ))
 
+            ########### Averages ###########
             x = []
-            print("[+]: Computing averages over {} runs".format(cnt))
+            print("[+]: AVERAGES over {} runs".format(cnt))
             for i, name in enumerate(["acts", "objs"]):
-                avg_precision = results["precision"][i] / cnt
-                avg_recall = results["recall"][i] / cnt
-                avg_f1 = results["f1"][i] / cnt
+                for op in ["precision", "recall", "f1"]:
+                    results[op][i] /= cnt
+                    results[op][i] = round(results[op][i], 4)
 
                 print("[{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
-                    name, avg_precision, avg_recall, avg_f1
+                    name, results["precision"][i], results["recall"][i], results["f1"][i]
                 ))
 
             prec, rec, f1 = results["precision"], results["recall"], results["f1"]
@@ -304,7 +308,44 @@ if __name__ == '__main__':
             print("[+]: Saving data \n\n")
             cols = ["domain", "engine", "runs", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
             new_data = pd.DataFrame(np.array(x).reshape(1, -1), columns=cols)
-            df = pd.read_csv("data.csv") if os.path.exists("data.csv") else new_data
-            df = df.append(new_data)
-            df.to_csv("data.csv", index=False)
+            df = pd.read_csv(results_file).append(new_data) if os.path.exists(results_file) else new_data
+            df.to_csv(results_file, index=False)
             #################################
+
+
+
+#############################################################################
+# def old_compute_f1_objs(true_dict, preds):
+#     type = "objs"
+#     essential = true_dict["essential"][type].copy()
+#     optional = true_dict["optional"][type].copy()
+#     exclusive = true_dict["exclusive"][type].copy()
+#     words = test_data["words"]
+#
+#     # Flatten the data for objects
+#     if type == "objs":
+#         essential = [item for sublist in essential for item in sublist]
+#         optional = [item for sublist in optional for item in sublist]
+#         exclusive = []
+#
+#     total_tagged = len(preds)
+#     total_truth = len(essential)
+#
+#     right_es, right_op, right_ex = 0, 0, 0
+#     for item in preds:
+#         if item in essential:
+#             right_es += 1
+#             essential.remove(item)  # Removes from the left
+#             continue
+#
+#         if item in optional:
+#             right_op += 1
+#             total_truth += 1
+#             optional.remove(item)
+#
+#     total_right = right_es + right_op + right_ex
+#     precision = total_right / total_tagged
+#     recall = total_right / total_truth
+#     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+#
+#     return precision, recall, f1
