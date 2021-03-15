@@ -1,15 +1,18 @@
+import re
 import os
 import time
 import pickle
 import openai
 import random
-import re
 
+import pandas as pd
+import numpy as np
 
-# TODO: Make shorter sentences
+# TODO: Handpick examples that display optional, exclusive and essential actions
 # TODO: Put Exclusive actions like (act1() or act2() or act3())
 # TODO: Make data already in CSV format for better postprocessing
-
+# TODO: Make shorter sentences
+# TODO: Test optional objects better
 def get_acts_objs(acts_text):
     acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
     objs_list = re.findall(r'\((.*?)\)', acts_text)
@@ -29,15 +32,8 @@ def compute_f1_acts(true_dict, preds):
     exclusive = true_dict["exclusive"][type].copy()
     words = test_data["words"]
 
-    # Flatten the data for objects
-    # if type == "objs":
-    #     essential = [item for sublist in essential for item in sublist]
-    #     optional = [item for sublist in optional for item in sublist]
-    #     exclusive = []
-
     total_tagged = len(preds)
     total_truth = len(essential) + len(exclusive)
-
     right_es, right_op, right_ex = 0, 0, 0
     for item in preds:
         if item in essential:
@@ -54,6 +50,7 @@ def compute_f1_acts(true_dict, preds):
     for item_list in exclusive:
         item_list_w = [words[w_id] for w_id in item_list]
         intersect = set(item_list_w).intersection(preds)
+        # There can only appear 1 exclusive action amongst the predictions
         if len(intersect) == 1:
             right_ex += 1
             i = item_list_w.index(list(intersect)[0])           # Find the object indices of the matced action
@@ -66,6 +63,7 @@ def compute_f1_acts(true_dict, preds):
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
     return precision, recall, f1, true_objs
+
 
 def compute_f1_objs(true, preds):
     total_right = 0
@@ -82,6 +80,7 @@ def compute_f1_objs(true, preds):
     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 
     return precision, recall, f1
+
 
 def get_data(sample):
     # Action | (Objs) | Type
@@ -194,107 +193,110 @@ def get_test_dict(data):
     return test_dict
 
 
-wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
-win = pickle.load(open("EASDRL/data/win2k_labeled_text_data.pkl", "rb"))
-cook = pickle.load(open("EASDRL/data/cooking_labeled_text_data.pkl", "rb"))
-_ = pickle.load(open("EASDRL/data/cooking_dependency.pkl", "rb"))
+if __name__ == '__main__':
+    wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
+    win = pickle.load(open("EASDRL/data/win2k_labeled_text_data.pkl", "rb"))
+    cook = pickle.load(open("EASDRL/data/cooking_labeled_text_data.pkl", "rb"))
+    _ = pickle.load(open("EASDRL/data/cooking_dependency.pkl", "rb"))
 
-# precision, recall, f1: [actions, objects]
-results = {
-    "precision": [0, 0],
-    "recall": [0, 0],
-    "f1": [0, 0]
-}
-# ================= Params =================
-random.seed(42)
-gpt3_engine = "davinci"  # davinci, curie, babbage, ada
-gpt3_temp = 0.0  # Set to 0 for reproducibility
-gpt3_max_tokens = 150
-openai.api_key = os.environ["OPENAI_API_KEY"]
-n_examples = 2  # The amount of text cannot go over 2048
-tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
-n_runs = 10
-init_max_acts = 20
-domain = cook
-cnt = n_runs
-count_unfinished_responses = True
-# ==========================================
+    # precision, recall, f1: [actions, objects]
+    results = {
+        "precision": [0, 0],
+        "recall": [0, 0],
+        "f1": [0, 0]
+    }
 
+    # ================= Params =================
+    random.seed(42)
+    ENGINES = ["babbage", "ada"] #["davinci", "curie", "babbage", "ada"]
+    DOMAINS = {"cook": cook, "wiki": wiki, "win": win}
 
-for i in range(n_runs):
-    # Randomly sample text sequences from the domain
-    samples = random.sample(domain, n_examples + 1)
-    # train_samples = domain[1:n_examples + 1]
-    # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
-    train_samples = samples[:n_examples]
-    test_sample = samples[n_examples: n_examples+1][0]
+    gpt3_engine = "babbage"  # davinci, curie, babbage, ada
+    gpt3_temp = 0.0  # Set to 0 for reproducibility
+    gpt3_max_tokens = 150
 
-    query = ""
-    for sample in train_samples:
-        data_sample = get_data(sample)
-        text_str, acts_str = get_query_strs(data_sample)
-        query += tags[0] + text_str + tags[1] + acts_str
+    openai.api_key = os.environ["OPENAI_API_KEY"]
+    n_examples = 2  # The amount of text cannot go over 2048
+    tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
+    n_runs = 1
+    init_max_acts = 20
+    domain_name = "cook"
+    cnt = n_runs
+    count_unfinished_responses = True
+    # ==========================================
 
-    test_data = get_data(test_sample)
-    text_str_test, _ = get_query_strs(test_data)
+    for gpt3_engine in ENGINES:
+        for d in DOMAINS:
+            domain = DOMAINS[d]
+            for i in range(n_runs):
+                # Randomly sample text sequences from the domain
+                samples = random.sample(domain, n_examples + 1)
+                # train_samples = domain[1:n_examples + 1]
+                # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
+                train_samples = samples[:n_examples]
+                test_sample = samples[n_examples: n_examples+1][0]
 
-    query += tags[0] + text_str_test + tags[1]
-    query = query.strip()
+                query = ""
+                for sample in train_samples:
+                    data_sample = get_data(sample)
+                    text_str, acts_str = get_query_strs(data_sample)
+                    query += tags[0] + text_str + tags[1] + acts_str
 
-    test_true_dict = get_test_dict(test_data)
+                test_data = get_data(test_sample)
+                text_str_test, _ = get_query_strs(test_data)
 
-    # ----- Send query to GPT3 and check correct output -----
-    gpt3_response = send_query_gpt3(query)
-    if not count_unfinished_responses and tags[0].strip() not in gpt3_response:
-        print("[-]: Tag not found in response, continuing...")
-        print(gpt3_response)
-        cnt -= 1
-        continue
-    # -------------------------------------------------------
+                query += tags[0] + text_str_test + tags[1]
+                query = query.strip()
 
-    # Get just the actions
-    gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
-    pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
+                test_true_dict = get_test_dict(test_data)
 
-    prec, rec, f1, true_objs = compute_f1_acts(test_true_dict, pred_acts)
-    results["precision"][0] += prec
-    results["recall"][0] += rec
-    results["f1"][0] += f1
+                # ----- Send query to GPT3 and check correct output -----
+                gpt3_response = send_query_gpt3(query)
+                if not count_unfinished_responses and tags[0].strip() not in gpt3_response:
+                    print("[-]: Tag not found in response, continuing...")
+                    print(gpt3_response)
+                    cnt -= 1
+                    continue
+                # -------------------------------------------------------
 
-    print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-        i, "acts", prec, rec, f1
-    ))
+                # Get just the actions
+                gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
+                pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
-    prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
-    results["precision"][1] += prec
-    results["recall"][1] += rec
-    results["f1"][1] += f1
+                prec, rec, f1, true_objs = compute_f1_acts(test_true_dict, pred_acts)
+                results["precision"][0] += prec
+                results["recall"][0] += rec
+                results["f1"][0] += f1
 
-    print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-        i, "objs", prec, rec, f1
-    ))
+                print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+                    i, "acts", prec, rec, f1
+                ))
 
-print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
-for i, name in enumerate(["acts", "objs"]):
-    avg_precision = results["precision"][i] / cnt
-    avg_recall = results["recall"][i] / cnt
-    avg_f1 = results["f1"][i] / cnt
+                prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
+                results["precision"][1] += prec
+                results["recall"][1] += rec
+                results["f1"][1] += f1
 
-    print("[{}-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
-        "Raw", name, avg_precision, avg_recall, avg_f1
-    ))
+                print("[{}-{}]: Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
+                    i, "objs", prec, rec, f1
+                ))
 
-###############################################
-# Exclusive objs
-# for i, sublist in enumerate(exclusive):
-#     for j, subsub in enumerate(sublist):
-#         exclusive[i][j] = [words[i] for i in subsub]
-#     ...
-#     ...
-#     elif type == "objs":
-#         max_right = 0
-#         for excl in exclusive:
-#             for pairs in excl:
-#                 a1_objs, a2_objs = pairs[0], pairs[1]
-#                 max_right = max(len(set(a1_objs).intersection(preds)), len(set(a2_objs).intersection(preds)))
-###############################################
+            x = []
+            print("\n\n[+]: Computing averages over {} runs\n".format(cnt))
+            for i, name in enumerate(["acts", "objs"]):
+                avg_precision = results["precision"][i] / cnt
+                avg_recall = results["recall"][i] / cnt
+                avg_f1 = results["f1"][i] / cnt
+
+                print("[{}-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
+                    "Raw", name, avg_precision, avg_recall, avg_f1
+                ))
+            prec, rec, f1 = results["precision"], results["recall"], results["f1"]
+            x = [list(DOMAINS.keys()).index(domain_name), ENGINES.index(gpt3_engine),
+                 n_runs, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
+
+            cols = ["domain", "engine", "runs", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
+            new_data = pd.DataFrame(np.array(x).reshape(1, -1), columns=cols)
+            df = pd.read_csv("data.csv") if os.path.exists("data.csv") else new_data
+            df = df.append(new_data)
+            df.to_csv("data.csv", index=False)
