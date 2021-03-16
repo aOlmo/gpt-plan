@@ -8,8 +8,11 @@ import random
 import pandas as pd
 import numpy as np
 
+# TODO: Go over entire dataset with handpicked examples
 # TODO: Handpick examples that display optional, exclusive and essential actions
-# TODO: Put Exclusive actions like (act1() or act2() or act3())
+# TODO: Parallelize with threads
+# TODO: Store all GPT3 responses in 3 different files
+
 # TODO: Test optional objects better
 def get_acts_objs(acts_text):
     acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
@@ -211,7 +214,7 @@ if __name__ == '__main__':
     DOMAINS = {"win": win, "cook": cook, "wiki": wiki}
 
     gpt3_engine = "babbage"  # davinci, curie, babbage, ada
-    gpt3_temp = 0.0  # Set to 0 for reproducibility
+    gpt3_temp = 0  # Set to 0 for reproducibility
     gpt3_max_tokens = 150
 
     results_file = "data.csv"
@@ -220,7 +223,7 @@ if __name__ == '__main__':
     n_runs = 1
     max_sents = 15
     cnt = n_runs
-    count_unfinished_responses = True
+    count_unfinished_responses = False
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
 
@@ -275,9 +278,7 @@ if __name__ == '__main__':
                 results["recall"][0] += rec
                 results["f1"][0] += f1
 
-                print("[acts] Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                    prec, rec, f1
-                ))
+                print("[acts] Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(prec, rec, f1))
 
                 prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
                 results["precision"][1] += prec
@@ -319,14 +320,11 @@ if __name__ == '__main__':
 #     type = "objs"
 #     essential = true_dict["essential"][type].copy()
 #     optional = true_dict["optional"][type].copy()
-#     exclusive = true_dict["exclusive"][type].copy()
 #     words = test_data["words"]
 #
-#     # Flatten the data for objects
-#     if type == "objs":
-#         essential = [item for sublist in essential for item in sublist]
-#         optional = [item for sublist in optional for item in sublist]
-#         exclusive = []
+#     essential = [item for sublist in essential for item in sublist]
+#     optional = [item for sublist in optional for item in sublist]
+#     exclusive = []
 #
 #     total_tagged = len(preds)
 #     total_truth = len(essential)
