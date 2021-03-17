@@ -7,9 +7,8 @@ import random
 
 import pandas as pd
 import numpy as np
+from tqdm import tqdm
 
-# TODO: Go over entire dataset with handpicked examples
-# TODO: Handpick examples that display optional, exclusive and essential actions
 # TODO: Parallelize with threads
 # TODO: Store all GPT3 responses in 3 different files
 
@@ -201,6 +200,47 @@ def get_test_dict(data):
 
     return test_dict
 
+def get_repr_examples(DOMAINS, max_sents):
+
+    # Essential, exclusive, optional
+    examples_ids = {"win": [], "cook": [], "wiki": []}
+    examples_str = {"win": "", "cook": "", "wiki": ""}
+    for d_name in DOMAINS:
+        domain = DOMAINS[d_name]
+        # Max , id
+        maxs = {"es": [0,0], "ex": [0, 0], "op": [0, 0]}
+
+        for i, sample in enumerate(tqdm(domain)):
+            es, ex, op = 0, 0, 0
+            for act in sample["acts"]:
+                es += 1 if act["act_type"] == 1 else 0
+                ex += 1 if act["act_type"] == 3 else 0
+                op += 1 if act["act_type"] == 2 else 0
+
+            total_acts = es+ex+op
+            cur_maxs = {"es": es/total_acts, "ex": ex/total_acts, "op": op/total_acts}
+            for act_type in maxs:
+                max = maxs[act_type]
+                cur_max = cur_maxs[act_type]
+                if max[0] < cur_max:
+                    max[0] = cur_max
+                    max[1] = i
+
+        for act_type in maxs:
+            max, i = maxs[act_type][0], maxs[act_type][1]
+            print("{}-{}: max: {:.2}, ith: {}".format(d_name, act_type, max, i))
+            examples_ids[d_name].append(i)
+
+    # Get the corresponding TEXT and ACTION strings from the selected examples
+    for d_name in DOMAINS:
+        domain = DOMAINS[d_name]
+        for i, ith_sample in enumerate(examples_ids[d_name]):
+            if i == 0: continue # Dont use essential action as example
+            data_sample = get_data(domain[ith_sample], max_sents)
+            text_str, acts_str = get_query_strs(data_sample)
+            examples_str[d_name] += tags[0] + text_str + tags[1] + acts_str
+
+    return examples_str, examples_ids
 
 if __name__ == '__main__':
     wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
@@ -210,47 +250,50 @@ if __name__ == '__main__':
 
     # ================= Params =================
     random.seed(42)
-    ENGINES = ["babbage", "ada"]  #["davinci", "curie", "babbage", "ada"]
+    ENGINES = ["davinci", "curie", "babbage", "ada"]
     DOMAINS = {"win": win, "cook": cook, "wiki": wiki}
 
-    gpt3_engine = "babbage"  # davinci, curie, babbage, ada
     gpt3_temp = 0  # Set to 0 for reproducibility
     gpt3_max_tokens = 150
 
     results_file = "data.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
-    n_examples = 2  # The amount of text cannot go over 2048
-    n_runs = 1
+    n_examples = 3  # The amount of text cannot go over 2048
+    n_runs = 10
     max_sents = 15
-    cnt = n_runs
-    count_unfinished_responses = False
+    count_unfinished_responses = True
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
+
+    domain_examples, domain_examples_ids = get_repr_examples(DOMAINS, max_sents)
 
     for gpt3_engine in ENGINES:
         for domain_name in DOMAINS:
             domain = DOMAINS[domain_name]
             # precision, recall, f1: [actions, objects]
             results = {"precision": [0, 0], "recall": [0, 0], "f1": [0, 0]}
+            train_samples_str = domain_examples[domain_name]
 
-            print("ENGINE: {} | DOMAIN: {}".format(gpt3_engine, domain_name))
-            print("-" * 28)
-
-            for i in range(n_runs):
-                print("[+] RUN {}:".format(i), end=" ")
+            print("ENGINE: {} | DOMAIN: {}\n{}".format(gpt3_engine, domain_name, "-" * 28))
+            cnt = 0
+            for i, test_sample in enumerate(domain):
+                if i in domain_examples_ids[domain_name][1:]: continue
+                cnt += 1
+                print("[+] RUN {}/{}:".format(i, len(domain)), end=" ")
 
                 # Randomly sample text sequences from the domain
-                samples = random.sample(domain, n_examples + 1)
+                # samples = random.sample(domain, n_examples + 1)
                 # train_samples = domain[1:n_examples + 1]
                 # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
-                train_samples = samples[:n_examples]
-                test_sample = samples[n_examples: n_examples+1][0]
+                # train_samples = samples[:n_examples]
+                # test_sample = samples[n_examples: n_examples+1][0]
 
-                query = ""
-                for sample in train_samples:
-                    data_sample = get_data(sample, max_sents)
-                    text_str, acts_str = get_query_strs(data_sample)
-                    query += tags[0] + text_str + tags[1] + acts_str
+                query = train_samples_str.strip()
+                # query = ""
+                # for sample in train_samples:
+                #     data_sample = get_data(sample, max_sents)
+                #     text_str, acts_str = get_query_strs(data_sample)
+                #     query += tags[0] + text_str + tags[1] + acts_str
 
                 test_data = get_data(test_sample, max_sents)
                 text_str_test, _ = get_query_strs(test_data)
@@ -303,7 +346,7 @@ if __name__ == '__main__':
 
             prec, rec, f1 = results["precision"], results["recall"], results["f1"]
             x = [list(DOMAINS.keys()).index(domain_name), ENGINES.index(gpt3_engine),
-                 n_runs, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
+                 cnt, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
 
             ########### Save data ###########
             print("[+]: Saving data \n\n")
@@ -347,3 +390,13 @@ if __name__ == '__main__':
 #     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 #
 #     return precision, recall, f1
+
+
+
+            # data_sample = get_data(sample, max_sents)
+            # text_str, acts_str = get_query_strs(data_sample)
+            # info = "essential: {:.2}, exclusive: {:.2}, optional: {:.2}\n".format(es/total_acts, ex/total_acts, op/total_acts)
+            # str += "\n{}\nTEXT-{}:\n{}\nACTIONS-{}:\n{}{}\n\n".format("-"*30,i, text_str, i, info, acts_str)
+
+        # f.write(str)
+        # print("[+]: Saved "+out_fname)
