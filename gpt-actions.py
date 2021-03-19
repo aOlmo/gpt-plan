@@ -10,9 +10,6 @@ import numpy as np
 from tqdm import tqdm
 
 # TODO: Parallelize with threads
-# TODO: Store all GPT3 responses in 3 different files
-
-# TODO: Test optional objects better
 def get_acts_objs(acts_text):
     acts = [act.split("(")[0].strip() for act in acts_text.split("),") if act.split("(")[0].strip() != ""]
     objs_list = re.findall(r'\((.*?)\)', acts_text)
@@ -60,7 +57,7 @@ def compute_f1_acts(true_dict, preds):
     total_right = right_es + right_op + right_ex
     precision = total_right / total_tagged
     recall = total_right / total_truth
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
     return precision, recall, f1, true_objs
 
@@ -81,7 +78,7 @@ def compute_f1_objs(true, preds):
 
     precision = total_right / total_tagged
     recall = total_right / total_truth
-    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
+    f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0.0
 
     return precision, recall, f1
 
@@ -202,6 +199,18 @@ def get_test_dict(data):
     return test_dict
 
 
+def calc_avg_num_sents():
+    for domain_name in DOMAINS:
+        domain = DOMAINS[domain_name]
+        ct = 0
+        for i in domain:
+            ct += len(i["sents"])
+            si = 0
+            for s in i["sents"]:
+                si+=len(s)
+        print("AVG {} {} sents {}".format(domain_name, ct/len(domain), si/len(i["sents"])))
+
+
 def get_repr_examples(DOMAINS, max_sents, n_examples, rand=False):
     # Essential, exclusive, optional
     examples_ids = {"win": [], "cook": [], "wiki": []}
@@ -253,8 +262,9 @@ def get_repr_examples(DOMAINS, max_sents, n_examples, rand=False):
     # Get the corresponding TEXT and ACTION strings from the selected examples
     for d_name in DOMAINS:
         domain = DOMAINS[d_name]
+        if n_examples == 2:
+            examples_ids[d_name].pop(0)  # Manual remove of the essential max
         for i, ith_sample in enumerate(examples_ids[d_name]):
-            if i == 0 and n_examples == 2: continue
             data_sample = get_data(domain[ith_sample], max_sents)
             text_str, acts_str = get_query_strs(data_sample)
             examples_str[d_name] += tags[0] + text_str + tags[1] + acts_str
@@ -272,61 +282,40 @@ if __name__ == '__main__':
     random.seed(42)
     ENGINES = ["davinci", "curie", "babbage", "ada"]
     DOMAINS = {"win": win, "cook": cook, "wiki": wiki}
+    MAX_SENTS = 15
 
     gpt3_temp = 0  # Set to 0 for reproducibility
-    gpt3_max_tokens = 120
-    selected_engines = ["ada"]
+    gpt3_max_tokens = 100
+    selected_engines = ["davinci"]
 
     results_file = "data.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
-    n_examples_list = [1, 2, 3] # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
-    max_sents = 15
+    n_examples_list = [1, 2, 3, 4]  # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
     count_unfinished_responses = True
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
 
-    # for domain_name in DOMAINS:
-    #     domain = DOMAINS[domain_name]
-    #     ct = 0
-    #     for i in domain:
-    #         ct += len(i["sents"])
-    #         si = 0
-    #         for s in i["sents"]:
-    #             si+=len(s)
-    #     print("AVG {} {} sents {}".format(domain_name, ct/len(domain), si/len(i["sents"])))
-    #
-    # exit()
-
     for n_examples in n_examples_list:
+        max_sents = 10 if n_examples == 4 else MAX_SENTS
         domain_examples, domain_examples_ids = get_repr_examples(DOMAINS, max_sents, n_examples)
         for gpt3_engine in selected_engines:
             for domain_name in DOMAINS:
-                domain = DOMAINS[domain_name]
-                # precision, recall, f1: [actions, objects]
+                print("ENGINE: {} | DOMAIN: {} | N_EXAMPLES: {}\n{}".format(gpt3_engine, domain_name, n_examples, "-" * 28))
+                out_file = open("data/{}_{}.out".format(gpt3_engine, domain_name), "a+")
+                out_file.write(str(domain_examples_ids[domain_name])+": {} EXAMPLES\n".format(n_examples))
                 results = {"precision": [0, 0], "recall": [0, 0], "f1": [0, 0]}
+                domain = DOMAINS[domain_name]
+
+                # precision, recall, f1: [actions, objects]
                 train_samples_str = domain_examples[domain_name]
 
-                print("ENGINE: {} | DOMAIN: {} | N_EXAMPLES: {}\n{}".format(gpt3_engine, domain_name, n_examples, "-" * 28))
                 cnt = 0
-                pbar = tqdm(domain)
+                pbar = tqdm(domain[:2])
                 for i, test_sample in enumerate(pbar):
                     if i in domain_examples_ids[domain_name][1:]: continue
                     cnt += 1
-                    # print("[+] RUN {}/{}:".format(i, len(domain)), end=" ")
-
-                    # Randomly sample text sequences from the domain
-                    # samples = random.sample(domain, n_examples + 1)
-                    # train_samples = domain[1:n_examples + 1]
-                    # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
-                    # train_samples = samples[:n_examples]
-                    # test_sample = samples[n_examples: n_examples+1][0]
 
                     query = train_samples_str.strip()
-                    # query = ""
-                    # for sample in train_samples:
-                    #     data_sample = get_data(sample, max_sents)
-                    #     text_str, acts_str = get_query_strs(data_sample)
-                    #     query += tags[0] + text_str + tags[1] + acts_str
 
                     test_data = get_data(test_sample, max_sents)
                     text_str_test, _ = get_query_strs(test_data)
@@ -349,21 +338,26 @@ if __name__ == '__main__':
                     gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
                     pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
-                    prec, rec, f1, true_objs = compute_f1_acts(test_true_dict, pred_acts)
-                    results["precision"][0] += prec
-                    results["recall"][0] += rec
-                    results["f1"][0] += f1
+                    prec_a, rec_a, f1_a, true_objs = compute_f1_acts(test_true_dict, pred_acts)
+                    prec_o, rec_o, f1_o = compute_f1_objs(true_objs, pred_objs)
 
-                    prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
-                    results["precision"][1] += prec
-                    results["recall"][1] += rec
-                    results["f1"][1] += f1
+                    results["precision"][0] += prec_a
+                    results["recall"][0] += rec_a
+                    results["f1"][0] += f1_a
+
+                    results["precision"][1] += prec_o
+                    results["recall"][1] += rec_o
+                    results["f1"][1] += f1_o
+
+                    out_file.write("\n{}: {:.4f}-{:.4f}-{:.4f}_{:.4f}-{:.4f}-{:.4f}\n{}\n".format(
+                        i, prec_a, rec_a, f1_a, prec_o, rec_o, f1_o, gpt3_acts_text.strip()
+                    ))
 
                     pbar.set_postfix({"f1_act": results["f1"][0]/cnt, "f1_obj": results["f1"][1]/cnt})
 
                 ########### Averages ###########
-                x = []
                 print("[+]: AVERAGES over {} runs".format(cnt))
+                x = []
                 for i, name in enumerate(["acts", "objs"]):
                     for op in ["precision", "recall", "f1"]:
                         results[op][i] /= cnt
@@ -375,17 +369,16 @@ if __name__ == '__main__':
 
                 prec, rec, f1 = results["precision"], results["recall"], results["f1"]
                 x = [list(DOMAINS.keys()).index(domain_name), ENGINES.index(gpt3_engine),
-                     cnt, n_examples, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
+                     cnt, n_examples, max_sents, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
 
                 ########### Save data ###########
                 print("[+]: Saving data \n\n")
-                cols = ["domain", "engine", "runs", "examples", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
+                cols = ["domain", "engine", "runs", "examples", "max_sents", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
                 new_data = pd.DataFrame(np.array(x).reshape(1, -1), columns=cols)
                 df = pd.read_csv(results_file).append(new_data) if os.path.exists(results_file) else new_data
                 df.to_csv(results_file, index=False)
                 #################################
-
-
+                out_file.write("\n\n")
 
 #############################################################################
 # def old_compute_f1_objs(true_dict, preds):
@@ -419,13 +412,3 @@ if __name__ == '__main__':
 #     f1 = 2 * precision * recall / (precision + recall) if (precision + recall) > 0 else 0
 #
 #     return precision, recall, f1
-
-
-
-            # data_sample = get_data(sample, max_sents)
-            # text_str, acts_str = get_query_strs(data_sample)
-            # info = "essential: {:.2}, exclusive: {:.2}, optional: {:.2}\n".format(es/total_acts, ex/total_acts, op/total_acts)
-            # str += "\n{}\nTEXT-{}:\n{}\nACTIONS-{}:\n{}{}\n\n".format("-"*30,i, text_str, i, info, acts_str)
-
-        # f.write(str)
-        # print("[+]: Saved "+out_fname)
