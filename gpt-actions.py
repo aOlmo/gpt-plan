@@ -140,7 +140,7 @@ def get_query_strs(data):
 
 
 def send_query_gpt3(query):
-    print("Sending query...", end=" ")
+    # print("Sending query...", end=" ")
     start = time.time()
     response = openai.Completion.create(
         engine=gpt3_engine,
@@ -151,7 +151,8 @@ def send_query_gpt3(query):
         frequency_penalty=0,
         presence_penalty=0
     )
-    print("{:.2f}s elapsed".format(time.time() - start))
+    pbar.set_postfix({"elapsed": time.time() - start})
+    # print("{:.2f}s elapsed".format(time.time() - start))
     text_response = response["choices"][0]["text"]
 
     return text_response
@@ -200,47 +201,66 @@ def get_test_dict(data):
 
     return test_dict
 
-def get_repr_examples(DOMAINS, max_sents):
 
+def get_repr_examples(DOMAINS, max_sents, n_examples, rand=False):
     # Essential, exclusive, optional
     examples_ids = {"win": [], "cook": [], "wiki": []}
     examples_str = {"win": "", "cook": "", "wiki": ""}
-    for d_name in DOMAINS:
-        domain = DOMAINS[d_name]
-        # Max , id
-        maxs = {"es": [0,0], "ex": [0, 0], "op": [0, 0]}
 
-        for i, sample in enumerate(tqdm(domain)):
-            es, ex, op = 0, 0, 0
-            for act in sample["acts"]:
-                es += 1 if act["act_type"] == 1 else 0
-                ex += 1 if act["act_type"] == 3 else 0
-                op += 1 if act["act_type"] == 2 else 0
+    examples_remaining = n_examples
+    if rand == False:
+        for d_name in DOMAINS:
+            domain = DOMAINS[d_name]
 
-            total_acts = es+ex+op
-            cur_maxs = {"es": es/total_acts, "ex": ex/total_acts, "op": op/total_acts}
+            if n_examples == 1:
+                examples_ids[d_name].append(random.randint(0, len(domain)-1))
+                continue
+
+            # Max , id
+            maxs = {"es": [0,0], "ex": [0, 0], "op": [0, 0]}
+
+            for i, sample in enumerate(tqdm(domain)):
+                es, ex, op = 0, 0, 0
+                for act in sample["acts"]:
+                    es += 1 if act["act_type"] == 1 else 0
+                    ex += 1 if act["act_type"] == 3 else 0
+                    op += 1 if act["act_type"] == 2 else 0
+
+                total_acts = es+ex+op
+                cur_maxs = {"es": es/total_acts, "ex": ex/total_acts, "op": op/total_acts}
+                for act_type in maxs:
+                    max = maxs[act_type]
+                    cur_max = cur_maxs[act_type]
+                    if max[0] < cur_max:
+                        max[0] = cur_max
+                        max[1] = i
+
             for act_type in maxs:
-                max = maxs[act_type]
-                cur_max = cur_maxs[act_type]
-                if max[0] < cur_max:
-                    max[0] = cur_max
-                    max[1] = i
+                max, i = maxs[act_type][0], maxs[act_type][1]
+                print("{}-{}: max: {:.2}, ith: {}".format(d_name, act_type, max, i))
+                examples_ids[d_name].append(i)
+        examples_remaining = n_examples-3
 
-        for act_type in maxs:
-            max, i = maxs[act_type][0], maxs[act_type][1]
-            print("{}-{}: max: {:.2}, ith: {}".format(d_name, act_type, max, i))
-            examples_ids[d_name].append(i)
+    if examples_remaining >= 1:
+        for d_name in DOMAINS:
+            domain = DOMAINS[d_name]
+            new_example = random.randint(0, len(domain)-1)
+            while new_example in examples_ids[d_name]:
+                new_example = random.randint(0, len(domain) - 1)
+            examples_ids[d_name].append(new_example)
+        examples_remaining -= 1
 
     # Get the corresponding TEXT and ACTION strings from the selected examples
     for d_name in DOMAINS:
         domain = DOMAINS[d_name]
         for i, ith_sample in enumerate(examples_ids[d_name]):
-            if i == 0: continue # Dont use essential action as example
+            if i == 0 and n_examples == 2: continue
             data_sample = get_data(domain[ith_sample], max_sents)
             text_str, acts_str = get_query_strs(data_sample)
             examples_str[d_name] += tags[0] + text_str + tags[1] + acts_str
 
     return examples_str, examples_ids
+
 
 if __name__ == '__main__':
     wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
@@ -254,107 +274,116 @@ if __name__ == '__main__':
     DOMAINS = {"win": win, "cook": cook, "wiki": wiki}
 
     gpt3_temp = 0  # Set to 0 for reproducibility
-    gpt3_max_tokens = 150
+    gpt3_max_tokens = 120
+    selected_engines = ["ada"]
 
     results_file = "data.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
-    n_examples = 3  # The amount of text cannot go over 2048
-    n_runs = 10
+    n_examples_list = [1, 2, 3] # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
     max_sents = 15
     count_unfinished_responses = True
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
 
-    domain_examples, domain_examples_ids = get_repr_examples(DOMAINS, max_sents)
+    # for domain_name in DOMAINS:
+    #     domain = DOMAINS[domain_name]
+    #     ct = 0
+    #     for i in domain:
+    #         ct += len(i["sents"])
+    #         si = 0
+    #         for s in i["sents"]:
+    #             si+=len(s)
+    #     print("AVG {} {} sents {}".format(domain_name, ct/len(domain), si/len(i["sents"])))
+    #
+    # exit()
 
-    for gpt3_engine in ENGINES:
-        for domain_name in DOMAINS:
-            domain = DOMAINS[domain_name]
-            # precision, recall, f1: [actions, objects]
-            results = {"precision": [0, 0], "recall": [0, 0], "f1": [0, 0]}
-            train_samples_str = domain_examples[domain_name]
+    for n_examples in n_examples_list:
+        domain_examples, domain_examples_ids = get_repr_examples(DOMAINS, max_sents, n_examples)
+        for gpt3_engine in selected_engines:
+            for domain_name in DOMAINS:
+                domain = DOMAINS[domain_name]
+                # precision, recall, f1: [actions, objects]
+                results = {"precision": [0, 0], "recall": [0, 0], "f1": [0, 0]}
+                train_samples_str = domain_examples[domain_name]
 
-            print("ENGINE: {} | DOMAIN: {}\n{}".format(gpt3_engine, domain_name, "-" * 28))
-            cnt = 0
-            for i, test_sample in enumerate(domain):
-                if i in domain_examples_ids[domain_name][1:]: continue
-                cnt += 1
-                print("[+] RUN {}/{}:".format(i, len(domain)), end=" ")
+                print("ENGINE: {} | DOMAIN: {} | N_EXAMPLES: {}\n{}".format(gpt3_engine, domain_name, n_examples, "-" * 28))
+                cnt = 0
+                pbar = tqdm(domain)
+                for i, test_sample in enumerate(pbar):
+                    if i in domain_examples_ids[domain_name][1:]: continue
+                    cnt += 1
+                    # print("[+] RUN {}/{}:".format(i, len(domain)), end=" ")
 
-                # Randomly sample text sequences from the domain
-                # samples = random.sample(domain, n_examples + 1)
-                # train_samples = domain[1:n_examples + 1]
-                # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
-                # train_samples = samples[:n_examples]
-                # test_sample = samples[n_examples: n_examples+1][0]
+                    # Randomly sample text sequences from the domain
+                    # samples = random.sample(domain, n_examples + 1)
+                    # train_samples = domain[1:n_examples + 1]
+                    # test_sample = domain[0]  # domain[n_examples:n_examples + 1]
+                    # train_samples = samples[:n_examples]
+                    # test_sample = samples[n_examples: n_examples+1][0]
 
-                query = train_samples_str.strip()
-                # query = ""
-                # for sample in train_samples:
-                #     data_sample = get_data(sample, max_sents)
-                #     text_str, acts_str = get_query_strs(data_sample)
-                #     query += tags[0] + text_str + tags[1] + acts_str
+                    query = train_samples_str.strip()
+                    # query = ""
+                    # for sample in train_samples:
+                    #     data_sample = get_data(sample, max_sents)
+                    #     text_str, acts_str = get_query_strs(data_sample)
+                    #     query += tags[0] + text_str + tags[1] + acts_str
 
-                test_data = get_data(test_sample, max_sents)
-                text_str_test, _ = get_query_strs(test_data)
+                    test_data = get_data(test_sample, max_sents)
+                    text_str_test, _ = get_query_strs(test_data)
 
-                query += tags[0] + text_str_test + tags[1]
-                query = query.strip()
+                    query += tags[0] + text_str_test + tags[1]
+                    query = query.strip()
 
-                test_true_dict = get_test_dict(test_data)
+                    test_true_dict = get_test_dict(test_data)
 
-                # ----- Send query to GPT3 and check correct output -----
-                gpt3_response = send_query_gpt3(query)
-                if not count_unfinished_responses and tags[0].strip() not in gpt3_response:
-                    print("[-]: Tag not found in response, continuing...")
-                    print(gpt3_response)
-                    cnt -= 1
-                    continue
-                # -------------------------------------------------------
+                    # ----- Send query to GPT3 and check correct output -----
+                    gpt3_response = send_query_gpt3(query)
+                    if not count_unfinished_responses and tags[0].strip() not in gpt3_response:
+                        print("[-]: Tag not found in response, continuing...")
+                        # print(gpt3_response)
+                        cnt -= 1
+                        continue
+                    # -------------------------------------------------------
 
-                # Get just the actions
-                gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
-                pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
+                    # Get just the actions
+                    gpt3_acts_text = gpt3_response.split(tags[0].strip())[0]
+                    pred_acts, pred_objs = get_acts_objs(gpt3_acts_text)
 
-                prec, rec, f1, true_objs = compute_f1_acts(test_true_dict, pred_acts)
-                results["precision"][0] += prec
-                results["recall"][0] += rec
-                results["f1"][0] += f1
+                    prec, rec, f1, true_objs = compute_f1_acts(test_true_dict, pred_acts)
+                    results["precision"][0] += prec
+                    results["recall"][0] += rec
+                    results["f1"][0] += f1
 
-                print("[acts] Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(prec, rec, f1))
+                    prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
+                    results["precision"][1] += prec
+                    results["recall"][1] += rec
+                    results["f1"][1] += f1
 
-                prec, rec, f1 = compute_f1_objs(true_objs, pred_objs)
-                results["precision"][1] += prec
-                results["recall"][1] += rec
-                results["f1"][1] += f1
+                    pbar.set_postfix({"f1_act": results["f1"][0]/cnt, "f1_obj": results["f1"][1]/cnt})
 
-                print("[objs] Precision: {:.2f} | Recall: {:.2f} | F1: {:.2f}".format(
-                    prec, rec, f1
-                ))
+                ########### Averages ###########
+                x = []
+                print("[+]: AVERAGES over {} runs".format(cnt))
+                for i, name in enumerate(["acts", "objs"]):
+                    for op in ["precision", "recall", "f1"]:
+                        results[op][i] /= cnt
+                        results[op][i] = round(results[op][i], 4)
 
-            ########### Averages ###########
-            x = []
-            print("[+]: AVERAGES over {} runs".format(cnt))
-            for i, name in enumerate(["acts", "objs"]):
-                for op in ["precision", "recall", "f1"]:
-                    results[op][i] /= cnt
-                    results[op][i] = round(results[op][i], 4)
+                    print("[{}-exs-{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
+                        name, n_examples, results["precision"][i], results["recall"][i], results["f1"][i]
+                    ))
 
-                print("[{}]: Precision: {:.4f} | Recall: {:.4f} | F1: {:.4f}".format(
-                    name, results["precision"][i], results["recall"][i], results["f1"][i]
-                ))
+                prec, rec, f1 = results["precision"], results["recall"], results["f1"]
+                x = [list(DOMAINS.keys()).index(domain_name), ENGINES.index(gpt3_engine),
+                     cnt, n_examples, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
 
-            prec, rec, f1 = results["precision"], results["recall"], results["f1"]
-            x = [list(DOMAINS.keys()).index(domain_name), ENGINES.index(gpt3_engine),
-                 cnt, prec[0], rec[0], f1[0], prec[1], rec[1], f1[1]]
-
-            ########### Save data ###########
-            print("[+]: Saving data \n\n")
-            cols = ["domain", "engine", "runs", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
-            new_data = pd.DataFrame(np.array(x).reshape(1, -1), columns=cols)
-            df = pd.read_csv(results_file).append(new_data) if os.path.exists(results_file) else new_data
-            df.to_csv(results_file, index=False)
-            #################################
+                ########### Save data ###########
+                print("[+]: Saving data \n\n")
+                cols = ["domain", "engine", "runs", "examples", "prec_acts", "rec_acts", "f1_acts", "prec_objs", "rec_objs", "f1_objs"]
+                new_data = pd.DataFrame(np.array(x).reshape(1, -1), columns=cols)
+                df = pd.read_csv(results_file).append(new_data) if os.path.exists(results_file) else new_data
+                df.to_csv(results_file, index=False)
+                #################################
 
 
 
