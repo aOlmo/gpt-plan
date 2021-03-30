@@ -8,7 +8,7 @@ import threading
 
 import pandas as pd
 import numpy as np
-from tqdm import tqdm
+from tqdm.autonotebook import tqdm
 
 
 ############################ Threading ##############################
@@ -44,7 +44,7 @@ class myThreadEngine(threading.Thread):
 
     def run(self):
         for domain_name in DOMAINS:
-            out_file = open("data/{}_{}.out".format(self.gpt3_engine, domain_name), "a+")
+            out_file = open("data/{}_{}_{}.out".format(self.gpt3_engine, domain_name, self.n_examples), "a+")
             out_file.write(str(self.domain_examples_ids[domain_name]) + ": {} EXAMPLES\n".format(self.n_examples))
             domain = DOMAINS[domain_name]
 
@@ -53,8 +53,8 @@ class myThreadEngine(threading.Thread):
 
             cnt = 0
             pbar = tqdm(domain)
-            # pbar = tqdm(domain)
-            for i, test_sample in enumerate(pbar):
+            # pbar = tqdm(domain[:10])
+            for i, test_sample in enumerate(domain):
                 if i in self.domain_examples_ids[domain_name][1:]: continue
                 cnt += 1
 
@@ -73,6 +73,7 @@ class myThreadEngine(threading.Thread):
                 if err_flag or not count_unfinished_responses and tags[0].strip() not in gpt3_response:
                     if err_flag:
                         pbar.set_postfix({"max_tokens_error": True})
+                        # print("[-]: Max tokens error, continuing ...")
                     else:
                         print("[-]: Tag not found, continuing ...")
                         # print(gpt3_response)
@@ -126,8 +127,6 @@ class myThreadEngine(threading.Thread):
             df.to_csv(results_file, index=False)
             #################################
             out_file.write("\n\n")
-
-
 
 #####################################################################
 ############################### Utils ###############################
@@ -312,7 +311,6 @@ def calc_avg_num_sents():
                 si += len(s)
         print("AVG {} {} sents {}".format(domain_name, ct / len(domain), si / len(i["sents"])))
 
-#######################################################################
 
 def get_repr_examples(DOMAINS, max_sents, n_examples, rand=False):
     # Essential, exclusive, optional
@@ -374,6 +372,7 @@ def get_repr_examples(DOMAINS, max_sents, n_examples, rand=False):
 
     return examples_str, examples_ids
 
+#######################################################################
 
 if __name__ == '__main__':
     wiki = pickle.load(open("EASDRL/data/wikihow_labeled_text_data.pkl", "rb"))
@@ -384,16 +383,16 @@ if __name__ == '__main__':
     # ================= Params =================
     random.seed(42)
     ENGINES = ["davinci", "curie", "babbage", "ada"]
-    DOMAINS = {"win": win, "cook": cook}
+    DOMAINS = {"win": win, "cook": cook, "wiki": wiki}
     MAX_SENTS = 100
 
     gpt3_temp = 0  # Set to 0 for reproducibility
     gpt3_max_tokens = 100
-    selected_engines = ["babbage", "ada"]
+    selected_engines = ["ada"]
 
     results_file = "data.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
-    n_examples_list = [1, 2]  # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
+    n_examples_list = [1, 2, 3, 4]  # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
     count_unfinished_responses = True
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
