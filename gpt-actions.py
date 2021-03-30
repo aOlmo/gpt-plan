@@ -8,7 +8,7 @@ import threading
 
 import pandas as pd
 import numpy as np
-from tqdm.autonotebook import tqdm
+from tqdm import tqdm
 
 
 ############################ Threading ##############################
@@ -54,7 +54,7 @@ class myThreadEngine(threading.Thread):
             cnt = 0
             pbar = tqdm(domain)
             # pbar = tqdm(domain[:10])
-            for i, test_sample in enumerate(domain):
+            for i, test_sample in enumerate(pbar):
                 if i in self.domain_examples_ids[domain_name][1:]: continue
                 cnt += 1
 
@@ -388,9 +388,9 @@ if __name__ == '__main__':
 
     gpt3_temp = 0  # Set to 0 for reproducibility
     gpt3_max_tokens = 100
-    selected_engines = ["ada"]
+    selected_engines = ["davinci"]
 
-    results_file = "data.csv"
+    results_file = "data_davinci.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
     n_examples_list = [1, 2, 3, 4]  # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
     count_unfinished_responses = True
@@ -406,6 +406,7 @@ if __name__ == '__main__':
             print("[+]: Executing {}".format(thread_name))
             thread = myThreadEngine(i, gpt3_engine, n_examples, max_sents, domain_examples, domain_examples_ids)
             thread.start()
+            thread.join()  # Comment/Uncomment for parallel execution
 
 #############################################################################
 # def old_compute_f1_objs(true_dict, preds):
