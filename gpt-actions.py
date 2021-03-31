@@ -34,7 +34,8 @@ class myThreadEngine(threading.Thread):
                 max_tokens=gpt3_max_tokens,
                 top_p=1,
                 frequency_penalty=0,
-                presence_penalty=0
+                presence_penalty=0,
+                stop=["TEXT:", "ACTIONS:"]
             )
         except:
             max_token_err_flag = True
@@ -388,11 +389,11 @@ if __name__ == '__main__':
 
     gpt3_temp = 0  # Set to 0 for reproducibility
     gpt3_max_tokens = 100
-    selected_engines = ["davinci"]
+    selected_engines = ["babbage", "ada"]
 
     results_file = "data_davinci.csv"
     openai.api_key = os.environ["OPENAI_API_KEY"]
-    n_examples_list = [1, 2, 3, 4]  # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
+    n_examples_list = [1,2]  # 1: Random, 2: Excl+Opt 3: Es+Ex+Op 4: Random +prev
     count_unfinished_responses = True
     tags = ["\n\nTEXT: \n", "\nACTIONS: \n"]
     # ==========================================
@@ -406,7 +407,7 @@ if __name__ == '__main__':
             print("[+]: Executing {}".format(thread_name))
             thread = myThreadEngine(i, gpt3_engine, n_examples, max_sents, domain_examples, domain_examples_ids)
             thread.start()
-            thread.join()  # Comment/Uncomment for parallel execution
+            # thread.join()  # Comment/Uncomment for parallel execution
 
 #############################################################################
 # def old_compute_f1_objs(true_dict, preds):
