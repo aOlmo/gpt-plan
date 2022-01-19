@@ -1,2 +1,1 @@
 fast-downward.py domain.pddl instances/instance-1.pddl --search "astar(lmcut())"
-fast-downward.py domain.pddl instances/instance-1.pddl --search "astar(lmcut())"

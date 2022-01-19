@@ -79,6 +79,8 @@ def treat_on(atom):
     return f"{nd[terms[0].name]} on {nd[terms[1].name]}"
 
 
+
+
 if __name__ == '__main__':
     domain = './blocksworld.pddl'
     instance = './instances/instance-{}.pddl'
