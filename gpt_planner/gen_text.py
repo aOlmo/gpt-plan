@@ -1,10 +1,16 @@
 import os
-from tarski.io import PDDLReader
+import re
+import numpy as np
 from pathlib import Path
+from tarski.io import PDDLReader
 
 nd = {"a": "Blue", "b": "Orange", "c": "Red", "d": "Yellow", "e": "White", "f": "Magenta"}
 
-def get_query():
+def plan_to_text():
+    def treat_on(atom):
+        terms = atom.subterms
+        return f"{nd[terms[0].name]} on {nd[terms[1].name]}"
+
     BLOCKS = [nd[x.name] for x in list(lang.constants())]
 
     data = {}
@@ -65,19 +71,47 @@ def get_query():
             PLAN += ", "
 
     TEMPLATE = \
-f"""
-We have blocks {", ".join(BLOCKS[:-1])} and {BLOCKS[-1]}.
-Block {INIT}.\nOur goal is to have {GOAL}.
-
-In order, the plan is to {PLAN}.
-"""
+        f"""
+        We have blocks {", ".join(BLOCKS[:-1])} and {BLOCKS[-1]}.
+        Block {INIT}.\nOur goal is to have {GOAL}.
+        
+        In order, the plan is to {PLAN}.
+        """
 
     return TEMPLATE.replace("-", " ").replace("ontable", "on table")
 
-def treat_on(atom):
-    terms = atom.subterms
-    return f"{nd[terms[0].name]} on {nd[terms[1].name]}"
+# NOTE: We are assuming:
+#       (1) Actions in the text we have them on the domain beforehand
+#       (2) The 'put' action is assumed to be 'put down'
+#       (3) We know the object names
+#       (4) Objects order are placed in the same order that appear in the sentence
+def text_to_plan(actions):
+    text = """
+    Pick up the blue block from on top of the yellow block
+    Put down the blue block on the table
+    Pick up the yellow block from the table
+    Stack the yellow block on top of the blue block
+    Pick up the red block from the table
+    Stack the red block on top of the yellow block
+    """
 
+    actions_params_dict = dict(actions.items())
+    raw_actions = list(actions.keys())
+    actions = [x.replace("-", " ") for x in actions.keys()]
+
+    object_names = [x.lower() for x in nd.values()]
+    lines = [line.strip() for line in text.lower().strip().split("\n")]
+    for line in lines:
+        action_list = [action in line for action in actions]
+        assert sum(action_list) == 1
+        action = raw_actions[np.where(action_list)[0][0]]
+        n_params = len(actions_params_dict[action].parameters.vars())
+        params = [x for x in object_names if re.search(x, line)]  # TODO: this should be in order
+
+        action = "({} {})".format(action, " ".join(params[:n_params+1]))
+        print(action)
+
+    #TODO: Use VAL here
 
 
 
@@ -92,12 +126,15 @@ if __name__ == '__main__':
         reader.parse_domain(domain)
         problem = reader.parse_instance(cur_instance)
 
+        text_to_plan(reader.parser.problem.actions)
+        exit()
+
         cmd = f"~/soft/downward/fast-downward.py {domain} {cur_instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
         os.system(cmd)
 
         plan_file = Path(plan_out).read_text()
         lang = problem.language
-        print(get_query())
+        print(plan_to_text())
 
 
 
