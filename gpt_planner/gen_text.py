@@ -60,7 +60,6 @@ def plan_to_text(get_plan=True):
         with open(plan_file) as f:
             plan = [line.rstrip() for line in f][:-1]
 
-        cost = len(plan)
         for i, action in enumerate(plan):
             action = action.strip("(").strip(")")
             act_name, objs = action.split(" ")[0], action.split(" ")[1:]
@@ -72,11 +71,8 @@ def plan_to_text(get_plan=True):
             elif len(objs) == 1:
                 PLAN += f'{act_name.capitalize()} the {objs[0]} block'
 
-            if i == cost - 2:
-                PLAN += " and "
-            elif i < cost - 1:
-                PLAN += "\n"
-        PLAN += ".\nEnd of plan.\n\n"
+            PLAN += "\n"
+        PLAN += "End of plan.\n\n"
     TEMPLATE = f"{INIT.strip()}\nMy goal is to have {GOAL}.\nMy plan is as follows{PLAN}"
 
     return TEMPLATE.replace("-", " ").replace("ontable", "on the table")
@@ -121,54 +117,43 @@ def text_to_plan(text, action_set):
 
     return plan
 
-
-TEXT = """
-Pick up the orange block
-Stack the orange block on top of the blue block
-Pick up the red block
-Stack the red block on top of the orange block
-Pick up the yellow block 
-Stack the yellow block on top of the red block.
-    """
-
 INTRO = """
-    I am playing with a set of blocks where I need to arrange the blocks into stacks. \
-    I can only pick up one block at a time and I can only pick up a block if there are no other blocks on top of it.
-    """
+I am playing with a set of blocks where I need to arrange the blocks into stacks. \
+I can only pick up one block at a time and I can only pick up a block if there are no other blocks on top of it.
+"""
 
 if __name__ == '__main__':
     domain = './blocksworld.pddl'
     instance = './instances/instance-{}.pddl'
-    plan_out = "sas_plan"
+    plan_file = "sas_plan"
 
-    n_examples = 3
-    query = ""
-    for i in [2]:#range(1, 2+n_examples):
+    n_examples = 1
+    query = INTRO
+    for i in range(1, 2+n_examples):
+        last_plan = True if i == n_examples + 1 else False
+        ## Read Instance ##
         cur_instance = instance.format(i)
         print(f"Instance {cur_instance}")
         reader = PDDLReader(raise_on_error=True)
         reader.parse_domain(domain)
         problem = reader.parse_instance(cur_instance)
-
-        # plan = text_to_plan(TEXT, problem.actions)
-        # print(plan)
+        lang = problem.language
 
         cmd = f"~/soft/downward/fast-downward.py {domain} {cur_instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
         os.system(cmd)
+        plan = Path(plan_file).read_text()
 
-        plan_file = Path(plan_out).read_text()
-        lang = problem.language
-        last_plan = False if i == n_examples+1 else True
-        query += plan_to_text(last_plan)
-        query += "===================\n"
+        query += plan_to_text(not last_plan)
+        query += "===================\n" if not last_plan else ""
 
     print("== Query ==")
     print(query)
 
+    # TODO: Connect with GPT-3
+    # Do text_to_plan procedure
         # plan = text_to_plan(TEXT, problem.actions)
-        # validate_plan(plan, problem)
+        # print(plan)
+    # Apply VAL
+        # validate_cmd = f"Validate {domain} {instance} {gpt_plan_file}"
 
-##############################
-# print(lang.sorts)
-# print(lang.predicates)
-# print(lang.functions)
+
