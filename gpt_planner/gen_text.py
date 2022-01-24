@@ -1,19 +1,19 @@
 import os
-import re
 import numpy as np
+
+from utils import *
 from pathlib import Path
 from tarski.io import PDDLReader
 
 ND = {"a": "blue", "b": "orange", "c": "red", "d": "yellow", "e": "white", "f": "magenta"}
 DN = {v: k for k, v in ND.items()}
 
-def plan_to_text(get_plan=True):
+def instance_to_text(get_plan=True):
     def treat_on(atom):
         terms = atom.subterms
         return f"the {ND[terms[0].name]} block on top of the {ND[terms[1].name]} block"
 
     BLOCKS = [ND[x.name] for x in list(lang.constants())]
-
     data = {}
     for atom in problem.init.as_atoms():
         pred_name = atom.symbol.name
@@ -72,7 +72,7 @@ def plan_to_text(get_plan=True):
                 PLAN += f'{act_name.capitalize()} the {objs[0]} block'
 
             PLAN += "\n"
-        PLAN += "End of plan.\n\n"
+        PLAN += "End of plan\n\n"
     TEMPLATE = f"{INIT.strip()}\nMy goal is to have {GOAL}.\nMy plan is as follows{PLAN}"
 
     return TEMPLATE.replace("-", " ").replace("ontable", "on the table")
@@ -83,7 +83,7 @@ def plan_to_text(get_plan=True):
 #       (2) The 'put' action is assumed to be 'put down'
 #       (3) We know the object names
 #       (4) Objects order are placed in the same order that appear in the sentence
-def text_to_plan(text, action_set):
+def text_to_plan(text, action_set, plan_file):
     def get_ordered_objects(object_names, line):
         objs = []
         pos = []
@@ -95,16 +95,21 @@ def text_to_plan(text, action_set):
         sorted_zipped_lists = sorted(zip(pos, objs))
         return [el for _, el in sorted_zipped_lists]
 
+
     actions_params_dict = dict(action_set.items())
     raw_actions = list(action_set.keys())
-    actions = [x.replace("-", " ") for x in action_set.keys()]
+    text_actions = [x.replace("-", " ") for x in raw_actions]
+
+    text = text.lower().strip()
+    for action, text_action in zip(raw_actions, text_actions):
+        text = text.replace(text_action, action)
 
     object_names = [x.lower() for x in ND.values()]
-    lines = [line.strip() for line in text.lower().strip().split("\n")]
+    lines = [line.strip() for line in text.split("\n")]
 
     plan = ""
     for line in lines:
-        action_list = [action in line for action in actions]
+        action_list = [action in line.split(" ") for action in raw_actions]
         assert sum(action_list) == 1
         action = raw_actions[np.where(action_list)[0][0]]
         n_objs = len(actions_params_dict[action].parameters.vars())
@@ -115,7 +120,19 @@ def text_to_plan(text, action_set):
         action = "({} {})".format(action, " ".join(objs[:n_objs + 1]))
         plan += f"{action}\n"
 
+    print(f"[+]: Saving plan in {plan_file}")
+    file = open(plan_file, "wt")
+    file.write(plan)
+    file.close()
+
     return plan
+
+
+def compute_plan(domain, instance, file):
+    cmd = f"~/soft/downward/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
+    os.system(cmd)
+    return Path(file).read_text()
+
 
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. \
@@ -126,8 +143,9 @@ if __name__ == '__main__':
     domain = './blocksworld.pddl'
     instance = './instances/instance-{}.pddl'
     plan_file = "sas_plan"
+    gpt3_plan_file = "gpt_sas_plan"
 
-    n_examples = 1
+    n_examples = 3
     query = INTRO
     for i in range(1, 2+n_examples):
         last_plan = True if i == n_examples + 1 else False
@@ -138,22 +156,25 @@ if __name__ == '__main__':
         reader.parse_domain(domain)
         problem = reader.parse_instance(cur_instance)
         lang = problem.language
+        # ---------------- #
 
-        cmd = f"~/soft/downward/fast-downward.py {domain} {cur_instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
-        os.system(cmd)
-        plan = Path(plan_file).read_text()
+        # ------------ Put plan and instance into text ------------ #
+        plan = compute_plan(domain, cur_instance, plan_file)
+        query += instance_to_text(not last_plan)
+        # query += "===================\n" if not last_plan else ""
+        # --------------------------------------------------------- #
 
-        query += plan_to_text(not last_plan)
-        query += "===================\n" if not last_plan else ""
-
-    print("== Query ==")
+    # Querying GPT-3
     print(query)
+    gpt3_response = send_query_gpt3(query, 'davinci', 100)
 
-    # TODO: Connect with GPT-3
     # Do text_to_plan procedure
-        # plan = text_to_plan(TEXT, problem.actions)
-        # print(plan)
+    gpt3_plan = text_to_plan(gpt3_response, problem.actions, gpt3_plan_file)
+    print(plan)
+    print()
+    print(gpt3_plan)
+
     # Apply VAL
-        # validate_cmd = f"Validate {domain} {instance} {gpt_plan_file}"
+    validate_plan(domain, cur_instance, gpt3_plan_file)
 
 
