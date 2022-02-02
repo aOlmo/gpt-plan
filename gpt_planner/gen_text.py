@@ -5,7 +5,13 @@ from utils import *
 from pathlib import Path
 from tarski.io import PDDLReader
 
-ND = {"a": "blue", "b": "orange", "c": "red", "d": "yellow", "e": "white", "f": "magenta"}
+ND = {"a": "blue", "b": "orange", "c": "red", "d": "yellow", "e": "white", "f": "magenta", "g": "black", "h": "cyan",
+      "i": "green", "j": "violet"}
+ND_B = {"b1": "blue", "b2": "orange", "b3": "red", "b4": "yellow"}
+
+#TODO-A: Make this better
+ND= ND_B
+
 DN = {v: k for k, v in ND.items()}
 
 def instance_to_text(get_plan=True):
@@ -13,7 +19,7 @@ def instance_to_text(get_plan=True):
         terms = atom.subterms
         return f"the {ND[terms[0].name]} block on top of the {ND[terms[1].name]} block"
 
-    BLOCKS = [ND[x.name] for x in list(lang.constants())]
+    # BLOCKS = [ND[x.name] for x in list(lang.constants())]
     data = {}
     for atom in problem.init.as_atoms():
         pred_name = atom.symbol.name
@@ -45,13 +51,16 @@ def instance_to_text(get_plan=True):
         INIT += ". "
 
     GOAL = ""
-    n = len(problem.goal.subformulas)
-    for i, atom in enumerate(problem.goal.subformulas):
-        GOAL += treat_on(atom)
-        if i == n - 2:
-            GOAL += " and "
-        elif i < n - 1:
-            GOAL += ", "
+    try:
+        n = len(problem.goal.subformulas)
+        for i, atom in enumerate(problem.goal.subformulas):
+            GOAL += treat_on(atom)
+            if i == n - 2:
+                GOAL += " and "
+            elif i < n - 1:
+                GOAL += ", "
+    except:
+        GOAL += treat_on(problem.goal)
 
     plan_file = "sas_plan"
     PLAN = ""
@@ -72,7 +81,7 @@ def instance_to_text(get_plan=True):
                 PLAN += f'{act_name.capitalize()} the {objs[0]} block'
 
             PLAN += "\n"
-        PLAN += "End of plan\n\n"
+        # PLAN += "End of plan\n\n"
     TEMPLATE = f"{INIT.strip()}\nMy goal is to have {GOAL}.\nMy plan is as follows{PLAN}"
 
     return TEMPLATE.replace("-", " ").replace("ontable", "on the table")
@@ -110,7 +119,7 @@ def text_to_plan(text, action_set, plan_file):
     plan = ""
     for line in lines:
         action_list = [action in line.split(" ") for action in raw_actions]
-        assert sum(action_list) == 1
+        if sum(action_list) == 0: continue
         action = raw_actions[np.where(action_list)[0][0]]
         n_objs = len(actions_params_dict[action].parameters.vars())
 
@@ -134,47 +143,75 @@ def compute_plan(domain, instance, file):
     return Path(file).read_text()
 
 
-INTRO = """
-I am playing with a set of blocks where I need to arrange the blocks into stacks. \
-I can only pick up one block at a time and I can only pick up a block if there are no other blocks on top of it.
-"""
 
+INTRO = """
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+"""
 if __name__ == '__main__':
-    domain = './blocksworld.pddl'
-    instance = './instances/instance-{}.pddl'
+
+    np.random.seed(42)
+    domain = './instances/generated_domain.pddl'
+    instance = './instances/generated/instance-{}.pddl'
     plan_file = "sas_plan"
     gpt3_plan_file = "gpt_sas_plan"
 
-    n_examples = 3
     query = INTRO
-    for i in range(1, 2+n_examples):
-        last_plan = True if i == n_examples + 1 else False
-        ## Read Instance ##
-        cur_instance = instance.format(i)
-        print(f"Instance {cur_instance}")
-        reader = PDDLReader(raise_on_error=True)
-        reader.parse_domain(domain)
-        problem = reader.parse_instance(cur_instance)
-        lang = problem.language
-        # ---------------- #
+    n_examples = 1
+    cur_instance = ""
 
-        # ------------ Put plan and instance into text ------------ #
-        plan = compute_plan(domain, cur_instance, plan_file)
-        query += instance_to_text(not last_plan)
-        # query += "===================\n" if not last_plan else ""
-        # --------------------------------------------------------- #
+    # Generate N blocksworld problems
+    gen_blocksworld_problems([4, 5, 6, 7], 30)
 
-    # Querying GPT-3
-    print(query)
-    gpt3_response = send_query_gpt3(query, 'davinci', 100)
+    N = 20
+    verbose = False
+    correct_plans = 0
+    #TODO-A: Do this with random replacement and more difficult plans
+    for start in np.random.randint(1, 20, N):
+        for i in range(start, start+n_examples+1):
+            last_plan = True if i == start + n_examples else False
+            ## Read Instance ##
+            cur_instance = instance.format(i)
+            print(f"Instance {cur_instance}")
+            reader = PDDLReader(raise_on_error=True)
+            reader.parse_domain(domain)
+            problem = reader.parse_instance(cur_instance)
+            lang = problem.language
+            # ---------------- #
 
-    # Do text_to_plan procedure
-    gpt3_plan = text_to_plan(gpt3_response, problem.actions, gpt3_plan_file)
-    print(plan)
-    print()
-    print(gpt3_plan)
+            # ------------ Put plan and instance into text ------------ #
+            plan = compute_plan(domain, cur_instance, plan_file)
+            query += instance_to_text(not last_plan) + "\n"
+            # --------------------------------------------------------- #
 
-    # Apply VAL
-    validate_plan(domain, cur_instance, gpt3_plan_file)
+        # Querying GPT-3
 
+        gpt3_response = send_query_gpt3(query, 'davinci', 120)
+
+        # Do text_to_plan procedure
+        gpt3_plan = text_to_plan(gpt3_response, problem.actions, gpt3_plan_file)
+
+        if verbose:
+            print(query)
+            print("\n--------- GPT3 response ---------")
+            print(gpt3_response)
+            print("\n--------- Extracted plan ---------")
+            print(gpt3_plan)
+            print(ND)
+
+        # Apply VAL
+        correct_plans += int(validate_plan(domain, cur_instance, gpt3_plan_file))
+
+    print(f"[+]: The number of correct plans is {correct_plans}/{N}={correct_plans/N*100}%")
 
