@@ -5,7 +5,7 @@ from utils import *
 from tarski.io import PDDLReader
 np.random.seed(42)
 
-N = 30
+N = 20
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
 
@@ -25,23 +25,24 @@ if __name__ == '__main__':
     DOMAIN_TYPE = "generated"  # ipc/generated
 
     # Generate N blocksworld problems
-    if DOMAIN_TYPE == "generated": gen_blocksworld_problems([4, 5, 6, 7], N+10)
+    if DOMAIN_TYPE == "generated": gen_blocksworld_problems([4, 5], N+10)
 
     domain = f'./instances/{DOMAIN_TYPE}_domain.pddl'
     instance = f'./instances/{DOMAIN_TYPE}/instance-{{}}.pddl'
     plan_file = "sas_plan"
     gpt3_plan_file = "gpt_sas_plan"
+    engine = 'davinci'
 
-    n_examples = 2
+    n_examples = 1
     cur_instance = ""
 
-    verbose = False
+    verbose = 1
     correct_plans = 0
 
     query = ""
     for start in range(1, N-n_examples):
+        query = INTRO
         for i in range(start, start+n_examples+1):
-            query = INTRO
             last_plan = True if i == start + n_examples else False
             # --------------- Read Instance --------------- #
             cur_instance = instance.format(i)
@@ -53,29 +54,31 @@ if __name__ == '__main__':
             # --------------------------------------------- #
 
             # ------------ Put plan and instance into text ------------ #
+            query += "\n[STATEMENT]\n"
             plan = compute_plan(domain, cur_instance, plan_file)
-            query += instance_to_text_blocksworld(DOMAIN_TYPE, problem, not last_plan) + "\n"
+            query += instance_to_text_blocksworld(DOMAIN_TYPE, problem, not last_plan)
             # --------------------------------------------------------- #
 
         # Querying GPT-3
-        gpt3_response = send_query_gpt3(query, 'davinci', 120)
+        gpt3_response = send_query_gpt3(query, engine, 120)
 
         # Do text_to_plan procedure
         gpt3_plan = text_to_plan_blocksworld(DOMAIN_TYPE, gpt3_response, problem.actions, gpt3_plan_file)
 
         if verbose:
             print(query)
-            print("\n--------- GPT3 response ---------")
+            print("--------- GPT3 response ---------")
             print(gpt3_response)
-
-        # TODO: Print Ground truth plan
-        print("\n--------- Extracted plan ---------")
-        print(gpt3_plan)
+            print("--------- Extracted plan ---------")
+            print(gpt3_plan)
+            print("--------- GT plan ---------")
+            print(plan)
 
         # Apply VAL
         correct = int(validate_plan(domain, cur_instance, gpt3_plan_file))
-        if correct: print("CORRECT PLAN BY GPT3!")
+        if correct:
+            validate_plan(domain, cur_instance, gpt3_plan_file)
+            print("CORRECT PLAN BY GPT3!")
         correct_plans += correct
 
     print(f"[+]: The number of correct plans is {correct_plans}/{N}={correct_plans/N*100}%")
-

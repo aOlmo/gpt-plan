@@ -6,7 +6,7 @@ from pathlib import Path
 openai.api_key = os.environ["OPENAI_API_KEY"]
 LETTERS_DICT = {"a": "blue", "b": "orange", "c": "red", "d": "yellow",
                 "e": "white", "f": "magenta", "g": "black", "h": "cyan",
-                "i": "green", "j": "violet"}
+                "i": "green", "j": "violet", "k": "silver"}
 LETTERS_DICT_GEN = {"b1": "blue", "b2": "orange", "b3": "red", "b4": "yellow"}
 
 
@@ -71,7 +71,7 @@ def instance_to_text_blocksworld(domain_type, problem, get_plan):
     PLAN = ""
     plan_file = "sas_plan"
     if get_plan:
-        PLAN = "\n\n"
+        PLAN = "\n"
         with open(plan_file) as f:
             plan = [line.rstrip() for line in f][:-1]
 
@@ -89,7 +89,7 @@ def instance_to_text_blocksworld(domain_type, problem, get_plan):
             PLAN += "\n"
 
     # ----------- FILL TEMPLATE ----------- #
-    text = f"{INIT.strip()}\nMy goal is to have {GOAL}.\nMy plan is as follows{PLAN}"
+    text = f"{INIT.strip()}\nMy goal is to have {GOAL}.\nMy plan is as follows\n\n[PLAN]{PLAN}"
     text = text.replace("-", " ").replace("ontable", "on the table")
 
     return text
@@ -124,7 +124,7 @@ def text_to_plan_blocksworld(domain_type, text, action_set, plan_file):
 
     # ----------- GET DICTIONARIES ----------- #
     LD = LETTERS_DICT if "ipc" == domain_type else LETTERS_DICT_GEN  # Letters Dictionary
-    BD = {v: k for k, v in LETTERS_DICT.items()}  # Blocks Dictionary
+    BD = {v: k for k, v in LD.items()}  # Blocks Dictionary
 
     # ----------- GET RAW AND TEXT-FORMATTED ACTIONS AND OBJECTS ----------- #
     actions_params_dict = dict(action_set.items())
@@ -183,6 +183,7 @@ def gen_blocksworld_problems(objects, n):
                 fd.write(pddl)
             c += 1
 
+    print(f"[+]: A total of {c} instances have been generated")
     os.chdir(ORIG)
 
 
@@ -196,7 +197,8 @@ def send_query_gpt3(query, engine, max_tokens):
             max_tokens=max_tokens,
             top_p=1,
             frequency_penalty=0,
-            presence_penalty=0)
+            presence_penalty=0,
+            stop="[STATEMENT]")
     except:
         max_token_err_flag = True
         print("[-]: Failed GPT3 query execution")
@@ -208,10 +210,14 @@ def send_query_gpt3(query, engine, max_tokens):
 def validate_plan(domain, instance, plan_file):
     cmd = f"Validate {domain} {instance} {plan_file}"
     response = os.popen(cmd).read()
-    return True if "successful" in response else False
+    return True if "Plan valid" in response else False
 
 
-def compute_plan(domain, instance, file):
+def compute_plan(domain, instance, out_file):
     cmd = f"~/soft/downward/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
     os.system(cmd)
-    return Path(file).read_text()
+
+    if not os.path.exists(out_file):
+        return ""
+
+    return Path(out_file).read_text()
