@@ -6,13 +6,13 @@
              (holding ?x)
              (on ?x ?y))
 
-(:action pickup
+(:action pick-up
   :parameters (?ob)
   :precondition (and (clear ?ob) (ontable ?ob) (handempty))
   :effect (and (holding ?ob) (not (clear ?ob)) (not (ontable ?ob))
                (not (handempty))))
 
-(:action putdown
+(:action put-down
   :parameters  (?ob)
   :precondition (holding ?ob)
   :effect (and (clear ?ob) (handempty) (ontable ?ob)
