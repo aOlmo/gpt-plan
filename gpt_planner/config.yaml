@@ -1,0 +1,9 @@
+---
+domain: ipc
+actions:
+- {pick-up: "pick up the {} from on top of the {}",
+put-down: "put down the {}", stack: "stack the {} on top of the {}", unstack: "unstack the {} from on top of the {}"}
+objects:
+- [red block, green block, blue block]
+predicates:
+- ontable: "the {} is on the table"

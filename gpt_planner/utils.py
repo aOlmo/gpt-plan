@@ -21,9 +21,12 @@ def instance_to_text_blocksworld(domain_type, problem, get_plan):
     :param get_plan: Flag to return the plan as text as well
     :return:
     """
+
+    # TODO: Get names from config file here
     LD = LETTERS_DICT if "ipc" == domain_type else LETTERS_DICT_GEN
 
     # ----------- INSTANCE TO TEXT ----------- #
+    # TODO: Make this come from the config file directly
     data = {}
     for atom in problem.init.as_atoms():
         pred_name = atom.symbol.name
