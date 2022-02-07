@@ -1,0 +1,7 @@
+(pick-up_b )
+(stack_b_a )
+(pick-up_c )
+(stack_c_b )
+(pick-up_d )
+(stack_d_c )
+; cost = 6 (unit cost)
