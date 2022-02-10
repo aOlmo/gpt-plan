@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import yaml
 
 from utils import *
 from tarski.io import PDDLReader
@@ -21,14 +22,18 @@ I can only unstack a block from on top of another block if the block I am unstac
 I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
 I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
 """
+
 if __name__ == '__main__':
-    DOMAIN_TYPE = "generated"  # ipc/generated
+    with open('config.yaml', 'r') as file:
+        DATA = yaml.safe_load(file)
+
+    domain_name = DATA['domain']  # ipc/generated
 
     # Generate N blocksworld problems
-    if DOMAIN_TYPE == "generated": gen_blocksworld_problems([4, 5], N+10)
+    if domain_name == "generated": gen_blocksworld_problems([4, 5], N+10)
 
-    domain = f'./instances/{DOMAIN_TYPE}_domain.pddl'
-    instance = f'./instances/{DOMAIN_TYPE}/instance-{{}}.pddl'
+    domain_pddl = f'./instances/{domain_name}_domain.pddl'
+    instance = f'./instances/{domain_name}/instance-{{}}.pddl'
     plan_file = "sas_plan"
     gpt3_plan_file = "gpt_sas_plan"
     engine = 'davinci'
@@ -47,7 +52,7 @@ if __name__ == '__main__':
             # --------------- Read Instance --------------- #
             cur_instance = instance.format(i)
             reader = PDDLReader(raise_on_error=True)
-            reader.parse_domain(domain)
+            reader.parse_domain(domain_pddl)
             problem = reader.parse_instance(cur_instance)
             lang = problem.language
             print(f"Instance {cur_instance}")
@@ -55,15 +60,15 @@ if __name__ == '__main__':
 
             # ------------ Put plan and instance into text ------------ #
             query += "\n[STATEMENT]\n"
-            plan = compute_plan(domain, cur_instance, plan_file)
-            query += instance_to_text_blocksworld(DOMAIN_TYPE, problem, not last_plan)
+            plan = compute_plan(domain_pddl, cur_instance, plan_file)
+            query += instance_to_text_blocksworld(domain_name, problem, not last_plan)
             # --------------------------------------------------------- #
 
         # Querying GPT-3
         gpt3_response = send_query_gpt3(query, engine, 120)
 
         # Do text_to_plan procedure
-        gpt3_plan = text_to_plan_blocksworld(DOMAIN_TYPE, gpt3_response, problem.actions, gpt3_plan_file)
+        gpt3_plan = text_to_plan_blocksworld(domain_name, gpt3_response, problem.actions, gpt3_plan_file)
 
         if verbose:
             print(query)
@@ -75,9 +80,9 @@ if __name__ == '__main__':
             print(plan)
 
         # Apply VAL
-        correct = int(validate_plan(domain, cur_instance, gpt3_plan_file))
+        correct = int(validate_plan(domain_pddl, cur_instance, gpt3_plan_file))
         if correct:
-            validate_plan(domain, cur_instance, gpt3_plan_file)
+            validate_plan(domain_pddl, cur_instance, gpt3_plan_file)
             print("CORRECT PLAN BY GPT3!")
         correct_plans += correct
 
