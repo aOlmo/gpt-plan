@@ -1,0 +1,20 @@
+---
+domain: generated
+actions:
+  {pick-up: "pick up the {}",
+   put-down: "put down the {}",
+   stack: "stack the {} on top of the {}",
+   unstack: "unstack the {} from on top of the {}"}
+objects:
+- blue block
+- orange block
+- red block
+- yellow block
+predicates:
+  {ontable: "the {} is on the table",
+   clear: "the {} is clear",
+   handempty: "the hand is empty",
+   "on": "the {} is on the {}"}
+
+# encoded_objects: planners and generators use non-common names
+encoded_objects: {"b1": "blue block", "b2": "orange block", "b3": "red block", "b4": "yellow block"}

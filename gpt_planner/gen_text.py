@@ -24,7 +24,7 @@ I can only stack a block on top of another block if the block onto which I am st
 """
 
 if __name__ == '__main__':
-    with open('config.yaml', 'r') as file:
+    with open('ipc_config.yaml', 'r') as file:
         DATA = yaml.safe_load(file)
 
     domain_name = DATA['domain']  # ipc/generated
@@ -36,7 +36,7 @@ if __name__ == '__main__':
     instance = f'./instances/{domain_name}/instance-{{}}.pddl'
     plan_file = "sas_plan"
     gpt3_plan_file = "gpt_sas_plan"
-    engine = 'davinci'
+    engine = 'curie'
 
     n_examples = 1
     cur_instance = ""
@@ -49,6 +49,7 @@ if __name__ == '__main__':
         query = INTRO
         for i in range(start, start+n_examples+1):
             last_plan = True if i == start + n_examples else False
+            get_plan = not last_plan
             # --------------- Read Instance --------------- #
             cur_instance = instance.format(i)
             reader = PDDLReader(raise_on_error=True)
@@ -61,14 +62,14 @@ if __name__ == '__main__':
             # ------------ Put plan and instance into text ------------ #
             query += "\n[STATEMENT]\n"
             plan = compute_plan(domain_pddl, cur_instance, plan_file)
-            query += instance_to_text_blocksworld(domain_name, problem, not last_plan)
+            query += instance_to_text_blocksworld(problem, get_plan, DATA)
             # --------------------------------------------------------- #
 
         # Querying GPT-3
         gpt3_response = send_query_gpt3(query, engine, 120)
 
         # Do text_to_plan procedure
-        gpt3_plan = text_to_plan_blocksworld(domain_name, gpt3_response, problem.actions, gpt3_plan_file)
+        gpt3_plan = text_to_plan_blocksworld(gpt3_response, problem.actions, gpt3_plan_file, DATA)
 
         if verbose:
             print(query)

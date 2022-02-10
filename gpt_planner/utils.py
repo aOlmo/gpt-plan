@@ -1,74 +1,55 @@
 import os
+
 import openai
 import numpy as np
+
 from pathlib import Path
+from string import ascii_lowercase
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
-LETTERS_DICT = {"a": "blue", "b": "orange", "c": "red", "d": "yellow",
-                "e": "white", "f": "magenta", "g": "black", "h": "cyan",
-                "i": "green", "j": "violet", "k": "silver"}
-LETTERS_DICT_GEN = {"b1": "blue", "b2": "orange", "b3": "red", "b4": "yellow"}
-
 
 def treat_on(letters_dict, atom):
     terms = atom.subterms
     return f"the {letters_dict[terms[0].name]} block on top of the {letters_dict[terms[1].name]} block"
 
 
-def instance_to_text_blocksworld(domain_type, problem, get_plan):
+def instance_to_text_blocksworld(problem, get_plan, data):
     """
     Function to make a blocksworld instance into human-readable format
     :param get_plan: Flag to return the plan as text as well
     :return:
     """
 
-    # TODO: Get names from config file here
-    LD = LETTERS_DICT if "ipc" == domain_type else LETTERS_DICT_GEN
+    # TODO: Remove ascii in favor of yaml config file
+    OBJS = data['encoded_objects']
 
     # ----------- INSTANCE TO TEXT ----------- #
-    # TODO: Make this come from the config file directly
-    data = {}
-    for atom in problem.init.as_atoms():
-        pred_name = atom.symbol.name
-        if pred_name not in data:
-            data[pred_name] = []
-
-        if pred_name == "on":
-            first, second = atom.subterms
-            data["on"].append(f"the {LD[first.name]} block is on top of the {LD[second.name]} block")
-        elif atom.subterms:
-            data[pred_name].append(LD[atom.subterms[0].name])
-
-    # We delete these for GPT-3
     INIT = ""
-    del data['clear']
-    del data['handempty']
-    for obj in data:
-        n_obj = len(data[obj])
-        _and = " and " if len(data[obj]) > 1 else ""
-        is_are = "are" if n_obj > 1 else "is"
+    init_predicates = []
+    for atom in problem.init.as_atoms():
+        objs = []
+        for subterm in atom.subterms:
+            objs.append(OBJS[subterm.name])
+        init_predicates.append(data['predicates'][atom.predicate.symbol].format(*objs))
 
-        if obj == "on":
-            string = ", ".join(data[obj][:-1]) + f"{_and}{data[obj][-1]}"
-        else:
-            string = "the " + ", ".join(
-                data[obj][:-1]) + f"{_and}{data[obj][-1]} block{'s' if n_obj > 1 else ''}" + f" {is_are} {obj}"
-
-        INIT += string.capitalize()
-        INIT += ". "
+    if len(init_predicates) > 1:
+        INIT += ", ".join(init_predicates[:-1]) + f" and {init_predicates[-1]}"
+    else:
+        INIT += init_predicates[0]
 
     # ----------- GOAL TO TEXT ----------- #
     GOAL = ""
-    try:
-        n = len(problem.goal.subformulas)
-        for i, atom in enumerate(problem.goal.subformulas):
-            GOAL += treat_on(LD, atom)
-            if i == n - 2:
-                GOAL += " and "
-            elif i < n - 1:
-                GOAL += ", "
-    except:
-        GOAL += treat_on(LD, problem.goal)
+    goal_predicates = []
+    for atom in problem.goal.subformulas:
+        objs = []
+        for subterm in atom.subterms:
+            objs.append(OBJS[subterm.name])
+        goal_predicates.append(data['predicates'][atom.symbol.name].format(*objs))
+
+    if len(goal_predicates) > 1:
+        GOAL += ", ".join(goal_predicates[:-1]) + f" and {goal_predicates[-1]}"
+    else:
+        GOAL += goal_predicates[0]
 
     # ----------- PLAN TO TEXT ----------- #
     PLAN = ""
@@ -81,18 +62,11 @@ def instance_to_text_blocksworld(domain_type, problem, get_plan):
         for action in plan:
             action = action.strip("(").strip(")")
             act_name, objs = action.split(" ")[0], action.split(" ")[1:]
-            objs = [LD[x] for x in objs]
-
-            on_from = "from" if "unstack" in act_name else "on top of"
-            if len(objs) == 2:
-                PLAN += f'{act_name.capitalize()} the {objs[0]} block {on_from} the {objs[1]} block'
-            elif len(objs) == 1:
-                PLAN += f'{act_name.capitalize()} the {objs[0]} block'
-
-            PLAN += "\n"
+            objs = [OBJS[obj] for obj in objs]
+            PLAN += data['actions'][act_name].format(*objs) + "\n"
 
     # ----------- FILL TEMPLATE ----------- #
-    text = f"{INIT.strip()}\nMy goal is to have {GOAL}.\nMy plan is as follows\n\n[PLAN]{PLAN}"
+    text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n[PLAN]{PLAN}"
     text = text.replace("-", " ").replace("ontable", "on the table")
 
     return text
@@ -110,7 +84,7 @@ def get_ordered_objects(object_names, line):
     return [el for _, el in sorted_zipped_lists]
 
 
-def text_to_plan_blocksworld(domain_type, text, action_set, plan_file):
+def text_to_plan_blocksworld(text, action_set, plan_file, data):
     """
     Converts blocksworld plan in plain text to PDDL plan
     NOTE: We are assuming:
@@ -126,7 +100,7 @@ def text_to_plan_blocksworld(domain_type, text, action_set, plan_file):
     """
 
     # ----------- GET DICTIONARIES ----------- #
-    LD = LETTERS_DICT if "ipc" == domain_type else LETTERS_DICT_GEN  # Letters Dictionary
+    LD = data['encoded_objects']  # Letters Dictionary
     BD = {v: k for k, v in LD.items()}  # Blocks Dictionary
 
     # ----------- GET RAW AND TEXT-FORMATTED ACTIONS AND OBJECTS ----------- #
@@ -145,7 +119,7 @@ def text_to_plan_blocksworld(domain_type, text, action_set, plan_file):
     lines = [line.strip() for line in text.split("\n")]
     for line in lines:
         # Extracting actions
-        action_list = [action in line.split(" ") for action in raw_actions]
+        action_list = [action in line.split() for action in raw_actions]
         if sum(action_list) == 0: continue
         action = raw_actions[np.where(action_list)[0][0]]
 
