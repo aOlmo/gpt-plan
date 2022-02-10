@@ -9,7 +9,8 @@ from tarski.fstrips import AddEffect, DelEffect
 from tarski.fstrips.fstrips import FunctionalEffect, IncreaseEffect
 from .constants import *
 
-#TODO: Reduce extra ANDS
+#TODO: Negative Preconditions!!
+#TODO: Conditional Effects testing.
 
 
 
