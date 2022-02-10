@@ -34,7 +34,7 @@ class executor():
             this_much_easier = random.choice(range(len(regress_state)))
             to_add = set(random.choices(list(regress_state),k=this_much_easier))
             self.replanning = self.final_state.union(to_add)
-        
+
 
 
 
