@@ -10,7 +10,152 @@ LETTERS_DICT = {"a": "blue", "b": "orange", "c": "red", "d": "yellow",
                 "i": "green", "j": "violet", "k": "silver"}
 LETTERS_DICT_GEN = {"b1": "blue", "b2": "orange", "b3": "red", "b4": "yellow"}
 
+def plan_execution(exec, DATA, give_response):
+    """
+    We need
+        i. Initial State
+       ii. Plan subset
+      iii. Resulting state
+    If prompt:
+        Give Initial State, Plan Subset, a question regarding a pred in the resulting state and the answer
+    else:
+        Give Initial State, Plan Subset, a question regarding a pred in the resulting state
+    :return:
+    """
+    initial_state = exec.init_state
+    exec.random_prefix_execution()
+    plan_prefix = exec.plan[:exec.prefix]
+    resulting_state_dict = exec.final_state_dict
+    INIT = ""
+    init_text = []
+    for i in initial_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        init_text.append(DATA['predicates'][pred[0]].format(*objs))
+    if len(init_text) > 1:
+        INIT += ", ".join(init_text[:-1]) + f" and {init_text[-1]}"
+    else:
+        INIT += init_text[0]
 
+    PLAN = "[PLAN]\n"
+    for i in plan_prefix:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        PLAN+=DATA['actions'][pred[0]].format(*objs)
+        PLAN+="\n"
+
+    rand_pred = random.choice(list(resulting_state_dict.keys())).split('_')
+    objs = [DATA["encoded_objects"][j] for j in rand_pred[1:]]
+    FIN = f'[QUESTION]\n Is the statement \'{DATA["predicates"][rand_pred[0]].format(*objs)}\' true?\n[ANSWER]\n'
+    if give_response:
+        answer = resulting_state_dict['_'.join(rand_pred)]
+    else:
+        answer = ""
+    text = f"{INIT.strip()}\n I have executed the following plan:\n{PLAN}\n{FIN}{answer}"
+    return text, resulting_state_dict['_'.join(rand_pred)]
+
+
+def generate_plan_subset(exec, DATA, give_response):
+    """
+    We need
+        i. Initial State
+       ii. Plan subset
+      iii. Resulting state
+    If prompt:
+        Give Initial State, Plan Subset and Resulting State as Goal State
+    else:
+        Give Initial State and Resulting State as Goal State.
+    :return:
+    """
+    initial_state = exec.init_state
+    exec.random_prefix_execution()
+    plan_prefix = exec.plan[:exec.prefix]
+    resulting_state = exec.final_state
+    INIT = ""
+    init_text = []
+    for i in initial_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        init_text.append(DATA['predicates'][pred[0]].format(*objs))
+    if len(init_text) > 1:
+        INIT += ", ".join(init_text[:-1]) + f" and {init_text[-1]}"
+    else:
+        INIT += init_text[0]
+
+    PLAN = "[PLAN]\n"
+    plan_text = ""
+    for i in plan_prefix:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        plan_text += DATA['actions'][pred[0]].format(*objs)
+        plan_text += "\n"
+    if give_response:
+        PLAN+=plan_text
+
+    GOAL = ""
+    goal_text = []
+    for i in resulting_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        goal_text.append(DATA['predicates'][pred[0]].format(*objs))
+
+    if len(goal_text) > 1:
+        GOAL += ", ".join(goal_text[:-1]) + f" and {goal_text[-1]}"
+    else:
+        GOAL += goal_text[0]
+
+    text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n{PLAN}"
+    return text, plan_text
+
+def replanning_harder_easier(exec, DATA, give_response):
+    """
+
+    :return:
+    """
+    is_harder = random.choice([0,1])
+    if is_harder:
+        hard = "Problem was made harder\n"
+    else:
+        hard = "Problem was made easier\n"
+    exec.replanning(is_harder)
+    initial_state = exec.replanning_init
+    plan_prefix = exec.plan[:exec.prefix]
+    goal_state = exec.goal_state
+    INIT = ""
+    init_text = []
+    for i in initial_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        init_text.append(DATA['predicates'][pred[0]].format(*objs))
+    if len(init_text) > 1:
+        INIT += ", ".join(init_text[:-1]) + f" and {init_text[-1]}"
+    else:
+        INIT += init_text[0]
+
+    PLAN = "[PLAN]\n"
+    plan_text = ""
+    for i in plan_prefix:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        plan_text += DATA['actions'][pred[0]].format(*objs)
+        plan_text += "\n"
+    if give_response:
+        PLAN+=plan_text
+
+    GOAL = ""
+    goal_text = []
+    for i in goal_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        goal_text.append(DATA['predicates'][pred[0]].format(*objs))
+
+    if len(goal_text) > 1:
+        GOAL += ", ".join(goal_text[:-1]) + f" and {goal_text[-1]}"
+    else:
+        GOAL += goal_text[0]
+
+    text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n{PLAN}"
+    return text, hard+plan_text
 def treat_on(letters_dict, atom):
     terms = atom.subterms
     NEG_OR_POS = random.choice([0,1])

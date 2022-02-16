@@ -19,6 +19,7 @@ class executor():
         self.init_state = self.get_sets(self.model[INSTANCE][INIT][PREDICATES])
         self.goal_state = self.get_sets(self.model[INSTANCE][GOAL])
         self.final_state, self.all_preds, self.not_true_preds, self.prefix, self.replanning_init = [None] * 5
+        self.final_state_dict = {}
 
     def replanning(self, harder=0):
         """
@@ -77,6 +78,10 @@ class executor():
         self.final_state = self.get_final_state()
         self.all_preds = self.get_sets(self.model[PREDICATES])
         self.not_true_preds = self.all_preds.difference(self.final_state)
+        for i in self.final_state:
+            self.final_state_dict[i] = "Yes"
+        for i in self.not_true_preds:
+            self.final_state_dict[i] = "No"
 
     def get_final_state(self, ):
         initial_state = self.init_state

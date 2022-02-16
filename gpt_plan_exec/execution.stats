@@ -1,5 +1,5 @@
 Domain=BLOCKS
-Problem=BLOCKS-4-0
-Preprocessing=0.00373
-Fluents=30
-Operators=42
+Problem=BLOCKS-10-0
+Preprocessing=0.00596
+Fluents=132
+Operators=222

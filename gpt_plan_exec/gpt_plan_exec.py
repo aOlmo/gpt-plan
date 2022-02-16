@@ -10,6 +10,7 @@ We translate 1,2,3,4,2,3 to natural language for GPT-3 and then get the response
 We then translate the response back into PDDL and check if the response exists in 4
 """
 
+#TODO: Current convention is to make sure actions don't have _ in names
 
 import os
 import numpy as np
@@ -20,7 +21,6 @@ from utils import *
 from tarski.io import PDDLReader
 from executor import *
 np.random.seed(42)
-
 
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
@@ -36,60 +36,10 @@ I can only stack a block on top of another block if I had previously picked up o
 I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
 """
 
-def plan_execution(exec, DATA):
-    """
-    We need
-        i. Initial State
-       ii. Plan subset
-      iii. Resulting state
-    If prompt:
-        Give Initial State, Plan Subset, a question regarding a pred in the resulting state and the answer
-    else:
-        Give Initial State, Plan Subset, a question regarding a pred in the resulting state
-    :return:
-    """
-    initial_state = exec.init_state
-    exec.random_prefix_execution()
-    plan_prefix = exec.plan[:exec.prefix]
-    resulting_state = exec.final_state
-    for i in initial_state:
-        pred = i.split('_')
-        #Specific to blocksworld
-        if pred[0]=="clear" or pred[0]=="handempty":
-            continue
-
-
-
-def generate_plan_subset():
-    """
-    We need
-        i. Initial State
-       ii. Plan subset
-      iii. Resulting state
-    If prompt:
-        Give Initial State, Plan Subset and Resulting State as Goal State
-    else:
-        Give Initial State and Resulting State as Goal State.
-    :return:
-    """
-    initial_state = exec.init_state
-    exec.random_prefix_execution()
-    plan_prefix = exec.plan[:exec.prefix]
-    resulting_state = exec.final_state
-
-def replanning_harder_easier():
-    """
-
-    :return:
-    """
-    exec.replanning()
-    initial_state = exec.replanning_init
-    plan_prefix = exec.plan[:exec.prefix]
-    goal_state = exec.goal_state
 
 N=20
 if __name__=="__main__":
-    with open('config.yaml', 'r') as file:
+    with open('ipc_config.yaml', 'r') as file:
         DATA = yaml.safe_load(file)
     #Generate blocksworld problems
     DOMAIN_TYPE = "ipc"
@@ -110,7 +60,7 @@ if __name__=="__main__":
     for start in range(1,N-n_examples):
         query=INTRO
         for i in range(start, start+n_examples+1):
-            last_plan = True if i == start + n_examples else False
+            give_response = False if i == start + n_examples else True
             # --------------- Read Instance --------------- #
             cur_instance = instance.format(i)
             exec = executor(domain,cur_instance)
@@ -121,11 +71,12 @@ if __name__=="__main__":
             """
             print(f"Instance {cur_instance}")
             # --------------------------------------------- #
-
+            query+="\n[STATEMENT]\n"
             # ------------ Put plan and instance into text ------------ #
-            query += "\n[STATEMENT]\n"
-            # inst_text,answer = instance_to_text_blocksworld(DOMAIN_TYPE, problem, not last_plan)
-            # query+=inst_text
+            inst_text, answer = plan_execution(exec, DATA, give_response)
+            # inst_text,answer = generate_plan_subset(exec, DATA, give_response)
+            # inst_text, answer = replanning_harder_easier(exec, DATA, give_response)
+            query+=inst_text
             # --------------------------------------------------------- #
         # print("QUERY------------\n",query)
         # print(answer)
@@ -142,13 +93,10 @@ if __name__=="__main__":
             print("--------- Correct response ---------")
             print(answer)
 
-    #     # Apply VAL
-    #     correct = int(validate_plan(domain, cur_instance, gpt3_plan_file))
-    #     if correct:
-    #         validate_plan(domain, cur_instance, gpt3_plan_file)
-    #         print("CORRECT PLAN BY GPT3!")
-    #     correct_plans += correct
-    #
-    # print(f"[+]: The number of correct plans is {correct_plans}/{N}={correct_plans/N*100}%")
+        # Apply VAL
+        correct = gpt3_response.strip()==answer
+        correct_answers += correct
+
+    print(f"[+]: The number of correct plans is {correct_answers}/{N}={correct_answers/N*100}%")
 
     

@@ -1,0 +1,1 @@
+Instance ./instances/instance-1.pddl
