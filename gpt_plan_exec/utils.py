@@ -106,7 +106,113 @@ def generate_plan_subset(exec, DATA, give_response):
 
     text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n{PLAN}"
     return text, plan_text
+def goal_paraphrase(exec, DATA, give_response=True):
+    """
+    We need
+        i. Initial State
+       ii. Goal
+      iii. Plan
+    If prompt:
+        Give Initial State, Plan Subset and Resulting State as Goal State
+    else:
+        Give Initial State and Resulting State as Goal State.
+    :return:
+    """
+    initial_state = exec.init_state
+    exec.complete_plan_execution()
+    plan_prefix = exec.plan[:exec.prefix]
+    resulting_state = exec.goal_state
+    #---------------INIT-----------------------
+    INIT = ""
+    init_text = []
+    for i in initial_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        init_text.append(DATA['predicates'][pred[0]].format(*objs))
+    if len(init_text) > 1:
+        INIT += ", ".join(init_text[:-1]) + f" and {init_text[-1]}"
+    else:
+        INIT += init_text[0]
+    # ---------------PLAN-----------------------
+    PLAN = "[PLAN]\n"
+    plan_text = ""
+    for i in plan_prefix:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        plan_text += DATA['actions'][pred[0]].format(*objs)
+        plan_text += "\n"
+    if give_response:
+        PLAN+=plan_text
 
+    # ---------------PARAPHRASED GOAL-----------------------
+    random.shuffle(resulting_state)
+    PARAPHRASED_GOAL = ""
+    goal_text = []
+    for i in resulting_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        goal_text.append(DATA['predicates'][pred[0]].format(*objs))
+
+    if len(goal_text) > 1:
+        PARAPHRASED_GOAL += ", ".join(goal_text[:-1]) + f" and {goal_text[-1]}"
+    else:
+        PARAPHRASED_GOAL += goal_text[0]
+
+    text = f"{INIT.strip()}\nMy goal is to have that {PARAPHRASED_GOAL}.\nMy plan is as follows:\n\n{PLAN}"
+    return text, plan_text
+def fully_specified_goal(exec, DATA, give_response=True):
+    """
+    We need
+        i. Initial State
+       ii. Goal
+      iii. Plan
+    If prompt:
+        Give Initial State, Plan Subset and Resulting State as Goal State
+    else:
+        Give Initial State and Resulting State as Goal State.
+    :return:
+    """
+    initial_state = exec.init_state
+    exec.complete_plan_execution()
+    plan_prefix = exec.plan[:exec.prefix]
+    resulting_state = exec.final_state
+    #---------------INIT-----------------------
+    INIT = ""
+    init_text = []
+    for i in initial_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        init_text.append(DATA['predicates'][pred[0]].format(*objs))
+    if len(init_text) > 1:
+        INIT += ", ".join(init_text[:-1]) + f" and {init_text[-1]}"
+    else:
+        INIT += init_text[0]
+    # ---------------PLAN-----------------------
+    PLAN = "[PLAN]\n"
+    plan_text = ""
+    for i in plan_prefix:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        plan_text += DATA['actions'][pred[0]].format(*objs)
+        plan_text += "\n"
+    if give_response:
+        PLAN+=plan_text
+
+    # ---------------FULLY SPECIFIED GOAL-----------------------
+    FULLY_SPECIFIED_GOAL = ""
+    goal_text = []
+    for i in resulting_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        goal_text.append(DATA['predicates'][pred[0]].format(*objs))
+
+    if len(goal_text) > 1:
+        FULLY_SPECIFIED_GOAL += ", ".join(goal_text[:-1]) + f" and {goal_text[-1]}"
+    else:
+        FULLY_SPECIFIED_GOAL += goal_text[0]
+
+    text = f"{INIT.strip()}\nMy goal is to have that {FULLY_SPECIFIED_GOAL}.\nMy plan is as follows:\n\n{PLAN}"
+    return text, plan_text
 def replanning_harder_easier(exec, DATA, give_response):
     """
 
