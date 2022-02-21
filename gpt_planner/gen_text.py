@@ -7,7 +7,7 @@ from tarski.io import PDDLReader
 
 np.random.seed(42)
 
-N = 20
+N_MAX = 20
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
 
@@ -25,30 +25,34 @@ I can only stack a block on top of another block if the block onto which I am st
 """
 
 if __name__ == '__main__':
-    with open('ipc_config.yaml', 'r') as file:
+
+    config_file = 'basic_config.yaml'
+    with open(f'configs/{config_file}', 'r') as file:
         DATA = yaml.safe_load(file)
 
     domain_name = DATA['domain']  # ipc/generated
 
-    # Generate N blocksworld problems
-    if domain_name == "generated": gen_blocksworld_problems([4, 5], N + 10)
-
     plan_file = "sas_plan"
-    os.remove(plan_file)  # Make sure there is no plan already
+    try :os.remove(plan_file)
+    except: pass # Make sure there is no plan already
 
-    domain_pddl = f'./instances/{domain_name}_domain.pddl'
+    domain_pddl = f'./instances/{DATA["file"]}'
+    instance_folder = f'./instances/{domain_name}/'
     instance = f'./instances/{domain_name}/instance-{{}}.pddl'
+
     gpt3_plan_file = "gpt_sas_plan"
     engine = 'curie'
 
+    n_files = min(N_MAX, len(os.listdir(instance_folder)))
     n_examples = 1
     cur_instance = ""
+    if domain_name == "generated": gen_blocksworld_problems([4, 5], N_MAX + 10)  # Generate N blocksworld problems
 
     verbose = 1
     correct_plans = 0
 
     query = ""
-    for start in range(1, N - n_examples):
+    for start in range(0, n_files - n_examples):
         query = INTRO
         for i in range(start, start + n_examples + 1):
             last_plan = True if i == start + n_examples else False
@@ -90,4 +94,4 @@ if __name__ == '__main__':
             print("CORRECT PLAN BY GPT3!")
         correct_plans += correct
 
-    print(f"[+]: The number of correct plans is {correct_plans}/{N}={correct_plans / N * 100}%")
+    print(f"[+]: The number of correct plans is {correct_plans}/{n_files-n_examples}={correct_plans / (n_files-n_examples) * 100}%")

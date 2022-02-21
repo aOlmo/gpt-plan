@@ -1,15 +1,23 @@
 ---
-domain: generated
+domain: basic
+file: generated_domain.pddl
 actions:
   {pick-up: "pick up the {}",
    put-down: "put down the {}",
    stack: "stack the {} on top of the {}",
    unstack: "unstack the {} from on top of the {}"}
 objects:
+- red block
 - blue block
 - orange block
-- red block
 - yellow block
+- white block
+- magenta block
+- black block
+- cyan block
+- green block
+- violet block
+- silver block
 predicates:
   {ontable: "the {} is on the table",
    clear: "the {} is clear",
@@ -17,4 +25,7 @@ predicates:
    "on": "the {} is on top of the {}"}
 
 # encoded_objects: dictionary of object names
-encoded_objects: {"b1": "blue block", "b2": "orange block", "b3": "red block", "b4": "yellow block"}
+encoded_objects:
+  {"b1": "red block", "b2": "blue block", "b3": "orange block", "b4": "yellow block",
+   "b5": "white block", "b6": "magenta block", "b7": "black block", "b8": "cyan block",
+   "b9": "green block", "b10": "violet block", "b11": "silver block" }
