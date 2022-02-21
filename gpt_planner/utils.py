@@ -13,17 +13,13 @@ def treat_on(letters_dict, atom):
     return f"the {letters_dict[terms[0].name]} block on top of the {letters_dict[terms[1].name]} block"
 
 
-def instance_to_text_blocksworld(problem, get_plan, data):
-    """
-    Function to make a blocksworld instance into human-readable format
-    :param get_plan: Flag to return the plan as text as well
-    :return:
-    """
+def parse_problem(problem, data):
+    def parse(problem):
+        pass
 
-    # TODO: Remove ascii in favor of yaml config file
     OBJS = data['encoded_objects']
 
-    # ----------- INSTANCE TO TEXT ----------- #
+    # ----------- INIT STATE TO TEXT ----------- #
     INIT = ""
     init_predicates = []
     for atom in problem.init.as_atoms():
@@ -51,6 +47,17 @@ def instance_to_text_blocksworld(problem, get_plan, data):
     else:
         GOAL += goal_predicates[0]
 
+    return INIT, GOAL
+
+def instance_to_text_blocksworld(problem, get_plan, data):
+    """
+    Function to make a blocksworld instance into human-readable format
+    :param get_plan: Flag to return the plan as text as well
+    :return:
+    """
+
+    OBJS = data['encoded_objects']
+
     # ----------- PLAN TO TEXT ----------- #
     PLAN = ""
     plan_file = "sas_plan"
@@ -64,6 +71,8 @@ def instance_to_text_blocksworld(problem, get_plan, data):
             act_name, objs = action.split(" ")[0], action.split(" ")[1:]
             objs = [OBJS[obj] for obj in objs]
             PLAN += data['actions'][act_name].format(*objs) + "\n"
+
+    INIT, GOAL = parse_problem(problem, data)
 
     # ----------- FILL TEMPLATE ----------- #
     text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n[PLAN]{PLAN}"
@@ -164,7 +173,7 @@ def gen_blocksworld_problems(objects, n):
     os.chdir(ORIG)
 
 
-def send_query_gpt3(query, engine, max_tokens):
+def send_query_gpt3(query, engine, max_tokens, stop="[STATEMENT]"):
     max_token_err_flag = False
     try:
         response = openai.Completion.create(
@@ -175,7 +184,7 @@ def send_query_gpt3(query, engine, max_tokens):
             top_p=1,
             frequency_penalty=0,
             presence_penalty=0,
-            stop="[STATEMENT]")
+            stop=stop)
     except:
         max_token_err_flag = True
         print("[-]: Failed GPT3 query execution")
@@ -191,10 +200,11 @@ def validate_plan(domain, instance, plan_file):
 
 
 def compute_plan(domain, instance, out_file):
-    cmd = f"~/soft/downward/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
+    fast_downward_path = os.getenv("FAST_DOWNWARD")
+    cmd = f"{fast_downward_path}/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
     os.system(cmd)
 
     if not os.path.exists(out_file):
         return ""
-
     return Path(out_file).read_text()
+

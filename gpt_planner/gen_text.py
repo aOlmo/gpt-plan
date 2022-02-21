@@ -4,6 +4,7 @@ import yaml
 
 from utils import *
 from tarski.io import PDDLReader
+
 np.random.seed(42)
 
 N = 20
@@ -30,11 +31,13 @@ if __name__ == '__main__':
     domain_name = DATA['domain']  # ipc/generated
 
     # Generate N blocksworld problems
-    if domain_name == "generated": gen_blocksworld_problems([4, 5], N+10)
+    if domain_name == "generated": gen_blocksworld_problems([4, 5], N + 10)
+
+    plan_file = "sas_plan"
+    os.remove(plan_file)  # Make sure there is no plan already
 
     domain_pddl = f'./instances/{domain_name}_domain.pddl'
     instance = f'./instances/{domain_name}/instance-{{}}.pddl'
-    plan_file = "sas_plan"
     gpt3_plan_file = "gpt_sas_plan"
     engine = 'curie'
 
@@ -45,9 +48,9 @@ if __name__ == '__main__':
     correct_plans = 0
 
     query = ""
-    for start in range(1, N-n_examples):
+    for start in range(1, N - n_examples):
         query = INTRO
-        for i in range(start, start+n_examples+1):
+        for i in range(start, start + n_examples + 1):
             last_plan = True if i == start + n_examples else False
             get_plan = not last_plan
             # --------------- Read Instance --------------- #
@@ -87,4 +90,4 @@ if __name__ == '__main__':
             print("CORRECT PLAN BY GPT3!")
         correct_plans += correct
 
-    print(f"[+]: The number of correct plans is {correct_plans}/{N}={correct_plans/N*100}%")
+    print(f"[+]: The number of correct plans is {correct_plans}/{N}={correct_plans / N * 100}%")
