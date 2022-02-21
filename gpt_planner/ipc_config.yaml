@@ -21,9 +21,9 @@ predicates:
   {ontable: "the {} is on the table",
    clear: "the {} is clear",
    handempty: "the hand is empty",
-   "on": "the {} is on the {}"}
+   "on": "the {} is on top of the {}"}
 
-# encoded_objects: planners and generators use non-common names
+# encoded_objects: dictionary of object names
 encoded_objects:
   {"a": "red block", "b": "blue block", "c": "orange block", "d": "yellow block",
    "e": "white block", "f": "magenta block", "g": "black block", "h": "cyan block",

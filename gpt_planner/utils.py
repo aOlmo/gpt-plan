@@ -8,55 +8,121 @@ from string import ascii_lowercase
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
+
+def send_query_gpt3(query, engine, max_tokens, stop="[STATEMENT]"):
+    max_token_err_flag = False
+    try:
+        response = openai.Completion.create(
+            engine=engine,
+            prompt=query,
+            temperature=0,
+            max_tokens=max_tokens,
+            top_p=1,
+            frequency_penalty=0,
+            presence_penalty=0,
+            stop=stop)
+    except:
+        max_token_err_flag = True
+        print("[-]: Failed GPT3 query execution")
+
+    text_response = response["choices"][0]["text"] if not max_token_err_flag else ""
+    return text_response.strip()
+
+
 def treat_on(letters_dict, atom):
     terms = atom.subterms
     return f"the {letters_dict[terms[0].name]} block on top of the {letters_dict[terms[1].name]} block"
 
 
 def parse_problem(problem, data):
-    def parse(problem):
-        pass
+    def parse(init_goal_preds, OBJS):
+        TEXT = ""
+        predicates = []
+        for atom in init_goal_preds:
+            objs = []
+            for subterm in atom.subterms:
+                objs.append(OBJS[subterm.name])
+            predicates.append(data['predicates'][atom.symbol.name].format(*objs))
+
+        if len(predicates) > 1:
+            TEXT += ", ".join(predicates[:-1]) + f" and {predicates[-1]}"
+        else:
+            TEXT += predicates[0]
+        return TEXT
 
     OBJS = data['encoded_objects']
 
     # ----------- INIT STATE TO TEXT ----------- #
-    INIT = ""
-    init_predicates = []
-    for atom in problem.init.as_atoms():
-        objs = []
-        for subterm in atom.subterms:
-            objs.append(OBJS[subterm.name])
-        init_predicates.append(data['predicates'][atom.predicate.symbol].format(*objs))
-
-    if len(init_predicates) > 1:
-        INIT += ", ".join(init_predicates[:-1]) + f" and {init_predicates[-1]}"
-    else:
-        INIT += init_predicates[0]
+    INIT = parse(problem.init.as_atoms(), OBJS)
 
     # ----------- GOAL TO TEXT ----------- #
-    GOAL = ""
-    goal_predicates = []
-    for atom in problem.goal.subformulas:
-        objs = []
-        for subterm in atom.subterms:
-            objs.append(OBJS[subterm.name])
-        goal_predicates.append(data['predicates'][atom.symbol.name].format(*objs))
-
-    if len(goal_predicates) > 1:
-        GOAL += ", ".join(goal_predicates[:-1]) + f" and {goal_predicates[-1]}"
-    else:
-        GOAL += goal_predicates[0]
+    GOAL = parse(problem.goal.subformulas, OBJS)
 
     return INIT, GOAL
+
+
+def get_ordered_objects(object_names, line):
+    objs = []
+    pos = []
+    for obj in object_names:
+        if obj in line:
+            objs.append(obj)
+            pos.append(line.index(obj))
+
+    sorted_zipped_lists = sorted(zip(pos, objs))
+    return [el for _, el in sorted_zipped_lists]
+
+
+def gen_blocksworld_problems(objects, n):
+    ORIG = os.getcwd()
+    CMD = "./blocksworld 4 {}"
+    INSTANCE_FILE = "../../instances/generated/instance-{}.pddl"
+
+    os.chdir("pddlgenerators/blocksworld/")
+
+    set = {}
+    c = 0
+    for obj in objects:
+        cmd_exec = CMD.format(obj)
+        for i in range(n):
+            with open(INSTANCE_FILE.format(c), "w+") as fd:
+                pddl = os.popen(cmd_exec).read()
+                if pddl in set:
+                    print("[+]: Same instance, skipping...")
+                    continue
+                fd.write(pddl)
+            c += 1
+
+    print(f"[+]: A total of {c} instances have been generated")
+    os.chdir(ORIG)
+
+
+def validate_plan(domain, instance, plan_file):
+    cmd = f"Validate {domain} {instance} {plan_file}"
+    response = os.popen(cmd).read()
+    return True if "Plan valid" in response else False
+
+
+def compute_plan(domain, instance, out_file):
+    fast_downward_path = os.getenv("FAST_DOWNWARD")
+    cmd = f"{fast_downward_path}/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
+    os.system(cmd)
+
+    if not os.path.exists(out_file):
+        return ""
+    return Path(out_file).read_text()
+
 
 def instance_to_text_blocksworld(problem, get_plan, data):
     """
     Function to make a blocksworld instance into human-readable format
     :param get_plan: Flag to return the plan as text as well
-    :return:
     """
 
     OBJS = data['encoded_objects']
+
+    # ----------- PARSE THE PROBLEM ----------- #
+    INIT, GOAL = parse_problem(problem, data)
 
     # ----------- PLAN TO TEXT ----------- #
     PLAN = ""
@@ -72,8 +138,6 @@ def instance_to_text_blocksworld(problem, get_plan, data):
             objs = [OBJS[obj] for obj in objs]
             PLAN += data['actions'][act_name].format(*objs) + "\n"
 
-    INIT, GOAL = parse_problem(problem, data)
-
     # ----------- FILL TEMPLATE ----------- #
     text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n[PLAN]{PLAN}"
     text = text.replace("-", " ").replace("ontable", "on the table")
@@ -81,31 +145,17 @@ def instance_to_text_blocksworld(problem, get_plan, data):
     return text
 
 
-def get_ordered_objects(object_names, line):
-    objs = []
-    pos = []
-    for obj in object_names:
-        if obj in line:
-            objs.append(obj)
-            pos.append(line.index(obj))
-
-    sorted_zipped_lists = sorted(zip(pos, objs))
-    return [el for _, el in sorted_zipped_lists]
-
-
 def text_to_plan_blocksworld(text, action_set, plan_file, data):
     """
     Converts blocksworld plan in plain text to PDDL plan
-    NOTE: We are assuming:
-        (1) Actions in the text we have them on the domain
-        (2) The 'put' action is assumed to be 'put down'
-        (3) We know the object names
-        (4) Objects order are placed in the same order that appear in the sentence
+    ASSUMPTIONS:
+        (1) Actions in the text we have them on the domain file
+        (2) We know the object names
+        (3) Objects order is given by the sentence
 
     :param text: Blocksworld text to convert
     :param action_set: Set of possible actions
     :param plan_file: File to store PDDL plan
-    :return:
     """
 
     # ----------- GET DICTIONARIES ----------- #
@@ -147,64 +197,3 @@ def text_to_plan_blocksworld(text, action_set, plan_file, data):
     file.close()
 
     return plan
-
-
-def gen_blocksworld_problems(objects, n):
-    ORIG = os.getcwd()
-    CMD = "./blocksworld 4 {}"
-    INSTANCE_FILE = "../../instances/generated/instance-{}.pddl"
-
-    os.chdir("pddlgenerators/blocksworld/")
-
-    set = {}
-    c = 0
-    for obj in objects:
-        cmd_exec = CMD.format(obj)
-        for i in range(n):
-            with open(INSTANCE_FILE.format(c), "w+") as fd:
-                pddl = os.popen(cmd_exec).read()
-                if pddl in set:
-                    print("[+]: Same instance, skipping...")
-                    continue
-                fd.write(pddl)
-            c += 1
-
-    print(f"[+]: A total of {c} instances have been generated")
-    os.chdir(ORIG)
-
-
-def send_query_gpt3(query, engine, max_tokens, stop="[STATEMENT]"):
-    max_token_err_flag = False
-    try:
-        response = openai.Completion.create(
-            engine=engine,
-            prompt=query,
-            temperature=0,
-            max_tokens=max_tokens,
-            top_p=1,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=stop)
-    except:
-        max_token_err_flag = True
-        print("[-]: Failed GPT3 query execution")
-
-    text_response = response["choices"][0]["text"] if not max_token_err_flag else ""
-    return text_response.strip()
-
-
-def validate_plan(domain, instance, plan_file):
-    cmd = f"Validate {domain} {instance} {plan_file}"
-    response = os.popen(cmd).read()
-    return True if "Plan valid" in response else False
-
-
-def compute_plan(domain, instance, out_file):
-    fast_downward_path = os.getenv("FAST_DOWNWARD")
-    cmd = f"{fast_downward_path}/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
-    os.system(cmd)
-
-    if not os.path.exists(out_file):
-        return ""
-    return Path(out_file).read_text()
-
