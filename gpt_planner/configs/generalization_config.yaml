@@ -1,5 +1,5 @@
 ---
-domain: basic
+domain: generalization
 file: generated_domain.pddl
 actions:
   {pick-up: "pick up the {}",

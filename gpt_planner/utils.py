@@ -1,4 +1,5 @@
 import os
+import random
 
 import openai
 import numpy as np
@@ -8,6 +9,41 @@ from string import ascii_lowercase
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
+
+# TODO: Make this general for other domains, we should get the details from the yaml file
+def gen_generalization_examples_blocksworld(n, data):
+    def gen_instance(objs):
+        text = "(define (problem BW-generalization-4)\n(:domain blocksworld-4ops)"
+        text += "(:objects " + " ".join(objs) + ")\n"
+        text += "(:init \n(handempty)\n"
+
+        for obj in objs:
+            text += f"(ontable {obj})\n"
+
+        for obj in objs:
+            text += f"(clear {obj})\n"
+
+        text += ")\n(:goal\n(and\n"
+
+        for i in list(zip(objs, objs[1:])):
+            text += f"(on {i[0]} {i[1]})\n"
+
+        text += ")))"
+        return text
+
+    INSTANCE_FILE = f"./instances/{data['domain']}/instance-{{}}.pddl"
+
+    objs = data['encoded_objects']
+    encoded_objs = list(objs.keys())
+
+    for c in range(n):
+        n_objs = random.randint(3, len(data))
+        random.shuffle(encoded_objs)
+        objs_i1 = encoded_objs[:n_objs]
+        i1 = gen_instance(objs_i1)
+
+        with open(INSTANCE_FILE.format(c), "w+") as fd:
+            fd.write(i1)
 
 def send_query_gpt3(query, engine, max_tokens, stop="[STATEMENT]"):
     max_token_err_flag = False
@@ -197,3 +233,20 @@ def text_to_plan_blocksworld(text, action_set, plan_file, data):
     file.close()
 
     return plan
+
+################################################################
+#### Generate 2 instances each time
+# for c in range(1, n, 2):
+#     n_objs = random.randint(3, len(data))
+#     random.shuffle(encoded_objs)
+#     objs_i1 = encoded_objs[:n_objs]
+#     objs_i2 = objs_i1.copy()
+#     random.shuffle(objs_i2)
+#
+#     i1 = gen_instance(objs_i1)
+#     i2 = gen_instance(objs_i2)
+#
+#     with open(INSTANCE_FILE.format(c), "w+") as fd:
+#         fd.write(i1)
+#     with open(INSTANCE_FILE.format(c+1), "w+") as fd:
+#         fd.write(i2)

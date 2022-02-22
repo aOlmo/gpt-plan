@@ -25,34 +25,32 @@ I can only stack a block on top of another block if the block onto which I am st
 """
 
 if __name__ == '__main__':
+    engine = 'davinci'
 
-    config_file = 'basic_config.yaml'
+    config_file = 'generalization_config.yaml'
     with open(f'configs/{config_file}', 'r') as file:
         DATA = yaml.safe_load(file)
 
     domain_name = DATA['domain']  # ipc/generated
-
     plan_file = "sas_plan"
-    try :os.remove(plan_file)
-    except: pass # Make sure there is no plan already
+    gpt3_plan_file = "gpt_sas_plan"
 
     domain_pddl = f'./instances/{DATA["file"]}'
     instance_folder = f'./instances/{domain_name}/'
     instance = f'./instances/{domain_name}/instance-{{}}.pddl'
 
-    gpt3_plan_file = "gpt_sas_plan"
-    engine = 'curie'
-
     n_files = min(N_MAX, len(os.listdir(instance_folder)))
     n_examples = 1
     cur_instance = ""
+
     if domain_name == "generated": gen_blocksworld_problems([4, 5], N_MAX + 10)  # Generate N blocksworld problems
+    if domain_name == "generalization": gen_generalization_examples_blocksworld(N_MAX, DATA)
 
     verbose = 1
     correct_plans = 0
 
     query = ""
-    for start in range(0, n_files - n_examples):
+    for start in range(1, n_files - n_examples):
         query = INTRO
         for i in range(start, start + n_examples + 1):
             last_plan = True if i == start + n_examples else False
@@ -94,4 +92,7 @@ if __name__ == '__main__':
             print("CORRECT PLAN BY GPT3!")
         correct_plans += correct
 
-    print(f"[+]: The number of correct plans is {correct_plans}/{n_files-n_examples}={correct_plans / (n_files-n_examples) * 100}%")
+    print(
+        f"[+]: The number of correct plans is {correct_plans}/{n_files - n_examples}={correct_plans / (n_files - n_examples) * 100}%")
+    os.remove(plan_file)
+    os.remove(gpt3_plan_file)
