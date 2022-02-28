@@ -23,10 +23,24 @@ from executor import *
 np.random.seed(42)
 
 INTRO = """
-I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
-Pick up a block
-Unstack a block from on top of another block
-Stack a block on top of another block
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do: 
+Pick up a block.
+Unstack a block from on top of another block.
+Stack a block on top of another block.
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+"""
+
+INTRO_COST = """
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do: 
+Pick up a block. It takes 1 minute to pick up a block.
+Unstack a block from on top of another block. It takes 1 minute to unstack a block from on top of another block. 
+Stack a block on top of another block. It takes 1 minute to stack a block on top of another block.
 I have the following restrictions on my actions.
 I can only pick up or unstack one block at a time.
 I can only pick up a block if the block is on the table and there are no other blocks on top of it.
@@ -37,7 +51,7 @@ I can only stack a block on top of another block if the block onto which I am st
 """
 
 
-N=20
+N=5
 if __name__=="__main__":
     with open('ipc_config.yaml', 'r') as file:
         DATA = yaml.safe_load(file)
@@ -48,7 +62,7 @@ if __name__=="__main__":
     instance = f'./instances/instance-{{}}.pddl'
     plan_file = "sas_plan"
     gpt3_plan_file = "gpt_sas_plan"
-    engine = 'davinci'
+    engine = 'curie'
 
     n_examples = 1
     cur_instance = ""
@@ -58,7 +72,7 @@ if __name__=="__main__":
 
     query = ""
     for start in range(1,N-n_examples):
-        query=INTRO
+        query=INTRO_COST
         for i in range(start, start+n_examples+1):
             give_response = False if i == start + n_examples else True
             # --------------- Read Instance --------------- #
@@ -73,7 +87,7 @@ if __name__=="__main__":
             # --------------------------------------------- #
             query+="\n[STATEMENT]\n"
             # ------------ Put plan and instance into text ------------ #
-            inst_text, answer = plan_execution(exec, DATA, give_response)
+            inst_text, answer = optimality(exec, DATA, give_response)
             # inst_text,answer = generate_plan_subset(exec, DATA, give_response)
             # inst_text, answer = replanning_harder_easier(exec, DATA, give_response)
             query+=inst_text

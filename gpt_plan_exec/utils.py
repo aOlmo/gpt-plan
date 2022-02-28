@@ -106,6 +106,68 @@ def generate_plan_subset(exec, DATA, give_response):
 
     text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n{PLAN}"
     return text, plan_text
+
+def optimality(exec, DATA, give_response=True):
+    """
+    We need
+        i. Initial State
+        ii. Goal
+        iii. Plan
+        iv. Cost for plan
+    :param exec:
+    :param DATA:
+    :param give_response:
+    :return:
+    """
+    initial_state = exec.init_state
+    goal_state = exec.goal_state
+    plan = exec.plan
+    cost = exec.cost
+    #---------------INIT-----------------------
+    INIT = ""
+    init_text = []
+    for i in initial_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        init_text.append(DATA['predicates'][pred[0]].format(*objs))
+    if len(init_text) > 1:
+        INIT += ", ".join(init_text[:-1]) + f" and {init_text[-1]}"
+    else:
+        INIT += init_text[0]
+    # ---------------PLAN-----------------------
+    PLAN = "[PLAN]\n"
+    plan_text = ""
+    for i in plan:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        plan_text += DATA['actions'][pred[0]].format(*objs)
+        plan_text += "\n"
+    COST = ""
+    if give_response:
+        PLAN+=plan_text
+        COST+=f"\nThe total time to execute the plan is {cost} minute"
+        if cost>1:
+            COST+="s.\n"
+        else:
+            COST+=".\n"
+
+
+    # ---------------GOAL-----------------------
+    GOAL = ""
+    goal_text = []
+    for i in goal_state:
+        pred = i.split('_')
+        objs = [DATA["encoded_objects"][j] for j in pred[1:]]
+        goal_text.append(DATA['predicates'][pred[0]].format(*objs))
+
+    if len(goal_text) > 1:
+        GOAL += ", ".join(goal_text[:-1]) + f" and {goal_text[-1]}"
+    else:
+        GOAL += goal_text[0]
+
+    text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.I want to minimize the time taken to achieve my goal.\nMy plan is as follows:\n\n{PLAN}{COST}"
+    return text, plan_text
+
 def goal_paraphrase(exec, DATA, give_response=True):
     """
     We need

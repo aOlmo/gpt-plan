@@ -9,13 +9,14 @@ from model_parser.writer_new import ModelWriter
 from model_parser.constants import *
 import os
 import random
+import re
 
 
 class executor():
     def __init__(self, domain, problem):
         self.pr_domain, self.pr_problem = self.ground_domain(domain, problem)
         self.model = parse_model(self.pr_domain, self.pr_problem)
-        self.plan = self.get_plan(self.pr_domain, self.pr_problem)
+        self.plan, self.cost = self.get_plan(self.pr_domain, self.pr_problem)
         self.init_state = self.get_sets(self.model[INSTANCE][INIT][PREDICATES])
         self.goal_state = self.get_sets(self.model[INSTANCE][GOAL])
         self.final_state, self.all_preds, self.not_true_preds, self.prefix, self.replanning_init = [None] * 5
@@ -115,11 +116,18 @@ class executor():
         os.system(CMD_FD)
         # USE SAS PLAN to get actions
         plan = []
+        cost = 0
         with open('sas_plan') as f:
             for line in f:
                 if ';' not in line:
                     plan.append((line.strip()[1:-1].strip()))
-        return plan
+                else:
+                    cost_group = re.search(r'\d+',line)
+                    if cost_group:
+                        cost = int(cost_group.group())
+        if cost==0:
+            cost = len(plan)
+        return plan, cost
 
     def get_sets(self, list_of_preds):
         return set([i[0] for i in list_of_preds])
