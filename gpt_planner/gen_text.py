@@ -7,7 +7,7 @@ from tarski.io import PDDLReader
 
 np.random.seed(42)
 
-N_MAX = 20
+N_MAX = 30
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
 
@@ -39,12 +39,12 @@ if __name__ == '__main__':
     instance_folder = f'./instances/{domain_name}/'
     instance = f'./instances/{domain_name}/instance-{{}}.pddl'
 
+    if domain_name == "generated": gen_blocksworld_problems([4, 5], N_MAX + 10)  # Generate N blocksworld problems
+    if domain_name == "generalization": gen_generalization_examples_blocksworld(N_MAX, DATA)
+
     n_files = min(N_MAX, len(os.listdir(instance_folder)))
     n_examples = 1
     cur_instance = ""
-
-    if domain_name == "generated": gen_blocksworld_problems([4, 5], N_MAX + 10)  # Generate N blocksworld problems
-    if domain_name == "generalization": gen_generalization_examples_blocksworld(N_MAX, DATA)
 
     verbose = 1
     correct_plans = 0

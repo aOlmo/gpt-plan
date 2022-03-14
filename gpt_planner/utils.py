@@ -25,7 +25,10 @@ def gen_generalization_examples_blocksworld(n, data):
 
         text += ")\n(:goal\n(and\n"
 
-        for i in list(zip(objs, objs[1:])):
+        obj_tuples = list(zip(objs, objs[1:]))
+        # obj_tuples.reverse()
+
+        for i in obj_tuples:
             text += f"(on {i[0]} {i[1]})\n"
 
         text += ")))"
@@ -36,6 +39,7 @@ def gen_generalization_examples_blocksworld(n, data):
     objs = data['encoded_objects']
     encoded_objs = list(objs.keys())
 
+    print("[+]: Making generalization instances for blocksworld")
     for c in range(n):
         n_objs = random.randint(3, len(data))
         random.shuffle(encoded_objs)
