@@ -7,10 +7,11 @@ import numpy as np
 from pathlib import Path
 from string import ascii_lowercase
 
+import tarski.syntax.formulas
+
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
 
-# TODO: Make this general for other domains, we should get the details from the yaml file
 def gen_generalization_examples_blocksworld(n, data):
     def gen_instance(objs):
         text = "(define (problem BW-generalization-4)\n(:domain blocksworld-4ops)"
@@ -78,6 +79,8 @@ def parse_problem(problem, data):
     def parse(init_goal_preds, OBJS):
         TEXT = ""
         predicates = []
+
+        init_goal_preds = list(init_goal_preds)
         for atom in init_goal_preds:
             objs = []
             for subterm in atom.subterms:
@@ -96,7 +99,8 @@ def parse_problem(problem, data):
     INIT = parse(problem.init.as_atoms(), OBJS)
 
     # ----------- GOAL TO TEXT ----------- #
-    GOAL = parse(problem.goal.subformulas, OBJS)
+    goal_preds = problem.goal.subformulas if hasattr(problem.goal, 'subformulas') else [problem.goal]
+    GOAL = parse(goal_preds, OBJS)
 
     return INIT, GOAL
 

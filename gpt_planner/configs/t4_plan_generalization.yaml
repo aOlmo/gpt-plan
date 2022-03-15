@@ -29,3 +29,6 @@ encoded_objects:
   {"b1": "red block", "b2": "blue block", "b3": "orange block", "b4": "yellow block",
    "b5": "white block", "b6": "magenta block", "b7": "black block", "b8": "cyan block",
    "b9": "green block", "b10": "violet block", "b11": "silver block" }
+
+callbacks:
+- gen_generalization_examples_blocksworld(N_MAX, DATA)
