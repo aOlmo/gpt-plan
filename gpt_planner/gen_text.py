@@ -42,7 +42,7 @@ if __name__ == '__main__':
     instance = f'./instances/{domain_name}/instance-{{}}.pddl'
 
     # Make callbacks
-    # TODO: Change eval() for a more secure option
+    # TODO: Change eval() for a more secure and clean option
     for callback in DATA['callbacks']:
         print(f"Executing callback {callback}")
         eval(callback)
