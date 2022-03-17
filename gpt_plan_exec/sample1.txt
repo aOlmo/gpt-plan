@@ -1,0 +1,965 @@
+Instance ./instances/instance-1.pddl
+Instance ./instances/instance-2.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the yellow block is clear, the blue block is on the table, the red block is on the table, the red block is clear, the yellow block is on the table and the orange block is on the table
+ I have executed the following plan:
+[PLAN]
+pick up the blue block
+stack the blue block on top of the red block
+
+[QUESTION]
+ Is the statement 'the hand is empty' true?
+[ANSWER]
+Yes
+[STATEMENT]
+the hand is empty, the orange block is on the red block, the blue block is clear, the red block is on the yellow block, the blue block is on the orange block and the yellow block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the blue block from on top of the orange block
+put down the blue block
+unstack the orange block from on top of the red block
+put down the orange block
+
+[QUESTION]
+ Is the statement 'the orange block is on the blue block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+No
+--------- Correct response ---------
+No
+Instance ./instances/instance-2.pddl
+Instance ./instances/instance-3.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is on the red block, the blue block is clear, the red block is on the yellow block, the blue block is on the orange block and the yellow block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the blue block from on top of the orange block
+put down the blue block
+unstack the orange block from on top of the red block
+
+[QUESTION]
+ Is the statement 'the orange block is on the yellow block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the orange block is clear, the yellow block is clear, the blue block is on the table, the orange block is on the blue block, the red block is on the table, the red block is clear and the yellow block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the orange block from on top of the blue block
+
+[QUESTION]
+ Is the statement 'the orange block is on the table' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+No
+--------- Correct response ---------
+No
+Instance ./instances/instance-3.pddl
+Instance ./instances/instance-4.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the yellow block is clear, the blue block is on the table, the orange block is on the blue block, the red block is on the table, the red block is clear and the yellow block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the orange block from on top of the blue block
+stack the orange block on top of the yellow block
+
+[QUESTION]
+ Is the statement 'the orange block is on the orange block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the orange block is clear, the yellow block is clear, the red block is on the table, the white block is on the blue block, the yellow block is on the table, the orange block is on the white block and the blue block is on the red block
+ I have executed the following plan:
+[PLAN]
+
+[QUESTION]
+ Is the statement 'the blue block is on the yellow block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+No
+--------- Correct response ---------
+No
+Instance ./instances/instance-4.pddl
+Instance ./instances/instance-5.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the yellow block is clear, the red block is on the table, the white block is on the blue block, the yellow block is on the table, the orange block is on the white block and the blue block is on the red block
+ I have executed the following plan:
+[PLAN]
+unstack the orange block from on top of the white block
+put down the orange block
+pick up the yellow block
+stack the yellow block on top of the orange block
+unstack the white block from on top of the blue block
+put down the white block
+unstack the blue block from on top of the red block
+stack the blue block on top of the yellow block
+pick up the white block
+stack the white block on top of the blue block
+pick up the red block
+
+[QUESTION]
+ Is the statement 'the red block is on the white block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the white block is clear, the red block is on the yellow block, the white block is on the table, the yellow block is on the table, the orange block is on the table and the blue block is on the red block
+ I have executed the following plan:
+[PLAN]
+unstack the blue block from on top of the red block
+stack the blue block on top of the orange block
+unstack the red block from on top of the yellow block
+stack the red block on top of the white block
+unstack the blue block from on top of the orange block
+stack the blue block on top of the red block
+pick up the orange block
+
+[QUESTION]
+ Is the statement 'the hand is currently holding blue block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-5.pddl
+Instance ./instances/instance-6.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the white block is clear, the red block is on the yellow block, the white block is on the table, the yellow block is on the table, the orange block is on the table and the blue block is on the red block
+ I have executed the following plan:
+[PLAN]
+unstack the blue block from on top of the red block
+stack the blue block on top of the orange block
+unstack the red block from on top of the yellow block
+stack the red block on top of the white block
+unstack the blue block from on top of the orange block
+stack the blue block on top of the red block
+pick up the orange block
+
+[QUESTION]
+ Is the statement 'the red block is on the blue block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the orange block is on the red block, the yellow block is clear, the blue block is on the table, the yellow block is on the white block, the red block is on the blue block and the white block is on the orange block
+ I have executed the following plan:
+[PLAN]
+unstack the yellow block from on top of the white block
+put down the yellow block
+unstack the white block from on top of the orange block
+stack the white block on top of the yellow block
+unstack the orange block from on top of the red block
+put down the orange block
+unstack the red block from on top of the blue block
+put down the red block
+unstack the white block from on top of the yellow block
+stack the white block on top of the red block
+pick up the blue block
+stack the blue block on top of the white block
+
+[QUESTION]
+ Is the statement 'the red block is clear' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-6.pddl
+Instance ./instances/instance-7.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is on the red block, the yellow block is clear, the blue block is on the table, the yellow block is on the white block, the red block is on the blue block and the white block is on the orange block
+ I have executed the following plan:
+[PLAN]
+unstack the yellow block from on top of the white block
+put down the yellow block
+unstack the white block from on top of the orange block
+stack the white block on top of the yellow block
+unstack the orange block from on top of the red block
+put down the orange block
+unstack the red block from on top of the blue block
+put down the red block
+unstack the white block from on top of the yellow block
+stack the white block on top of the red block
+pick up the blue block
+stack the blue block on top of the white block
+
+[QUESTION]
+ Is the statement 'the blue block is on the blue block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the red block is on the orange block, the magenta block is on the white block, the yellow block is on the red block, the blue block is on the table, the yellow block is clear, the white block is on the blue block, the magenta block is clear and the orange block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the yellow block from on top of the red block
+put down the yellow block
+unstack the magenta block from on top of the white block
+stack the magenta block on top of the yellow block
+unstack the white block from on top of the blue block
+stack the white block on top of the magenta block
+unstack the red block from on top of the orange block
+stack the red block on top of the white block
+pick up the blue block
+
+[QUESTION]
+ Is the statement 'the magenta block is on the yellow block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+Yes
+Instance ./instances/instance-7.pddl
+Instance ./instances/instance-8.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the red block is on the orange block, the magenta block is on the white block, the yellow block is on the red block, the blue block is on the table, the yellow block is clear, the white block is on the blue block, the magenta block is clear and the orange block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the yellow block from on top of the red block
+put down the yellow block
+
+[QUESTION]
+ Is the statement 'the yellow block is on the blue block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the yellow block is clear, the blue block is on the table, the white block is clear, the red block is clear, the white block is on the table, the yellow block is on the table, the red block is on the magenta block, the orange block is on the table and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the red block from on top of the magenta block
+stack the red block on top of the yellow block
+pick up the blue block
+
+[QUESTION]
+ Is the statement 'the blue block is clear' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-8.pddl
+Instance ./instances/instance-9.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the yellow block is clear, the blue block is on the table, the white block is clear, the red block is clear, the white block is on the table, the yellow block is on the table, the red block is on the magenta block, the orange block is on the table and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the red block from on top of the magenta block
+stack the red block on top of the yellow block
+pick up the blue block
+stack the blue block on top of the red block
+pick up the orange block
+stack the orange block on top of the blue block
+pick up the magenta block
+
+[QUESTION]
+ Is the statement 'the white block is clear' true?
+[ANSWER]
+Yes
+[STATEMENT]
+the hand is empty, the blue block is on the magenta block, the orange block is on the table, the magenta block is on the white block, the red block is clear, the red block is on the yellow block, the yellow block is on the blue block and the white block is on the orange block
+ I have executed the following plan:
+[PLAN]
+unstack the red block from on top of the yellow block
+
+[QUESTION]
+ Is the statement 'the hand is currently holding red block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+No
+--------- Correct response ---------
+Yes
+Instance ./instances/instance-9.pddl
+Instance ./instances/instance-10.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the blue block is on the magenta block, the orange block is on the table, the magenta block is on the white block, the red block is clear, the red block is on the yellow block, the yellow block is on the blue block and the white block is on the orange block
+ I have executed the following plan:
+[PLAN]
+unstack the red block from on top of the yellow block
+put down the red block
+unstack the yellow block from on top of the blue block
+put down the yellow block
+unstack the blue block from on top of the magenta block
+put down the blue block
+unstack the magenta block from on top of the white block
+put down the magenta block
+unstack the white block from on top of the orange block
+put down the white block
+pick up the orange block
+stack the orange block on top of the yellow block
+pick up the blue block
+stack the blue block on top of the orange block
+pick up the red block
+stack the red block on top of the blue block
+
+[QUESTION]
+ Is the statement 'the red block is on the red block' true?
+[ANSWER]
+No
+[STATEMENT]
+the orange block is on the yellow block, the hand is empty, the magenta block is on the orange block, the white block is clear, the white block is on the black block, the black block is on the blue block, the red block is on the magenta block, the yellow block is on the table and the blue block is on the red block
+ I have executed the following plan:
+[PLAN]
+unstack the white block from on top of the black block
+put down the white block
+unstack the black block from on top of the blue block
+put down the black block
+unstack the blue block from on top of the red block
+put down the blue block
+unstack the red block from on top of the magenta block
+put down the red block
+unstack the magenta block from on top of the orange block
+
+[QUESTION]
+ Is the statement 'the orange block is on the red block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+No
+--------- Correct response ---------
+No
+Instance ./instances/instance-10.pddl
+Instance ./instances/instance-11.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the orange block is on the yellow block, the hand is empty, the magenta block is on the orange block, the white block is clear, the white block is on the black block, the black block is on the blue block, the red block is on the magenta block, the yellow block is on the table and the blue block is on the red block
+ I have executed the following plan:
+[PLAN]
+unstack the white block from on top of the black block
+put down the white block
+unstack the black block from on top of the blue block
+put down the black block
+unstack the blue block from on top of the red block
+put down the blue block
+unstack the red block from on top of the magenta block
+put down the red block
+unstack the magenta block from on top of the orange block
+stack the magenta block on top of the white block
+unstack the orange block from on top of the yellow block
+stack the orange block on top of the magenta block
+pick up the blue block
+
+[QUESTION]
+ Is the statement 'the black block is on the black block' true?
+[ANSWER]
+No
+[STATEMENT]
+the orange block is on the yellow block, the hand is empty, the orange block is clear, the white block is on the magenta block, the red block is on the black block, the black block is on the table, the blue block is on the white block, the red block is clear, the yellow block is on the blue block and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the orange block from on top of the yellow block
+stack the orange block on top of the red block
+unstack the yellow block from on top of the blue block
+put down the yellow block
+unstack the orange block from on top of the red block
+stack the orange block on top of the yellow block
+unstack the red block from on top of the black block
+put down the red block
+pick up the black block
+stack the black block on top of the orange block
+unstack the blue block from on top of the white block
+stack the blue block on top of the red block
+unstack the white block from on top of the magenta block
+put down the white block
+pick up the magenta block
+stack the magenta block on top of the black block
+unstack the blue block from on top of the red block
+stack the blue block on top of the magenta block
+pick up the white block
+stack the white block on top of the blue block
+pick up the red block
+
+[QUESTION]
+ Is the statement 'the red block is on the red block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-11.pddl
+Instance ./instances/instance-12.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the orange block is on the yellow block, the hand is empty, the orange block is clear, the white block is on the magenta block, the red block is on the black block, the black block is on the table, the blue block is on the white block, the red block is clear, the yellow block is on the blue block and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the orange block from on top of the yellow block
+
+[QUESTION]
+ Is the statement 'the black block is on the blue block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the white block is on the magenta block, the blue block is clear, the red block is clear, the red block is on the yellow block, the orange block is on the black block, the blue block is on the orange block, the yellow block is on the table, the black block is on the white block and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the blue block from on top of the orange block
+put down the blue block
+unstack the orange block from on top of the black block
+stack the orange block on top of the red block
+
+[QUESTION]
+ Is the statement 'the yellow block is on the table' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+Yes
+Instance ./instances/instance-12.pddl
+Instance ./instances/instance-13.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the white block is on the magenta block, the blue block is clear, the red block is clear, the red block is on the yellow block, the orange block is on the black block, the blue block is on the orange block, the yellow block is on the table, the black block is on the white block and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the blue block from on top of the orange block
+put down the blue block
+unstack the orange block from on top of the black block
+stack the orange block on top of the red block
+unstack the black block from on top of the white block
+put down the black block
+unstack the orange block from on top of the red block
+stack the orange block on top of the black block
+unstack the red block from on top of the yellow block
+stack the red block on top of the orange block
+pick up the yellow block
+stack the yellow block on top of the red block
+unstack the white block from on top of the magenta block
+put down the white block
+pick up the magenta block
+
+[QUESTION]
+ Is the statement 'the hand is currently holding magenta block' true?
+[ANSWER]
+Yes
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the yellow block is clear, the red block is on the black block, the blue block is on the table, the yellow block is on the cyan block, the red block is clear, the cyan block is on the magenta block, the white block is on the table, the orange block is on the table, the black block is on the white block and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the red block from on top of the black block
+stack the red block on top of the orange block
+unstack the black block from on top of the white block
+stack the black block on top of the blue block
+unstack the red block from on top of the orange block
+
+[QUESTION]
+ Is the statement 'the white block is on the table' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+Yes
+Instance ./instances/instance-13.pddl
+Instance ./instances/instance-14.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is clear, the yellow block is clear, the red block is on the black block, the blue block is on the table, the yellow block is on the cyan block, the red block is clear, the cyan block is on the magenta block, the white block is on the table, the orange block is on the table, the black block is on the white block and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the red block from on top of the black block
+stack the red block on top of the orange block
+unstack the black block from on top of the white block
+stack the black block on top of the blue block
+unstack the red block from on top of the orange block
+stack the red block on top of the black block
+pick up the orange block
+stack the orange block on top of the red block
+unstack the yellow block from on top of the cyan block
+put down the yellow block
+unstack the cyan block from on top of the magenta block
+stack the cyan block on top of the orange block
+pick up the white block
+stack the white block on top of the cyan block
+
+[QUESTION]
+ Is the statement 'the magenta block is clear' true?
+[ANSWER]
+Yes
+[STATEMENT]
+the hand is empty, the blue block is on the black block, the cyan block is on the red block, the orange block is on the table, the yellow block is clear, the black block is on the table, the white block is clear, the red block is on the blue block, the magenta block is clear, the yellow block is on the table, the white block is on the orange block, the cyan block is clear and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the white block from on top of the orange block
+put down the white block
+unstack the cyan block from on top of the red block
+stack the cyan block on top of the orange block
+unstack the red block from on top of the blue block
+stack the red block on top of the white block
+unstack the cyan block from on top of the orange block
+stack the cyan block on top of the red block
+pick up the magenta block
+stack the magenta block on top of the cyan block
+unstack the blue block from on top of the black block
+stack the blue block on top of the orange block
+pick up the black block
+stack the black block on top of the magenta block
+unstack the blue block from on top of the orange block
+stack the blue block on top of the black block
+pick up the yellow block
+stack the yellow block on top of the blue block
+pick up the orange block
+
+[QUESTION]
+ Is the statement 'the white block is on the red block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-14.pddl
+Instance ./instances/instance-15.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the blue block is on the black block, the cyan block is on the red block, the orange block is on the table, the yellow block is clear, the black block is on the table, the white block is clear, the red block is on the blue block, the magenta block is clear, the yellow block is on the table, the white block is on the orange block, the cyan block is clear and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the white block from on top of the orange block
+put down the white block
+unstack the cyan block from on top of the red block
+stack the cyan block on top of the orange block
+unstack the red block from on top of the blue block
+stack the red block on top of the white block
+unstack the cyan block from on top of the orange block
+stack the cyan block on top of the red block
+pick up the magenta block
+stack the magenta block on top of the cyan block
+unstack the blue block from on top of the black block
+stack the blue block on top of the orange block
+
+[QUESTION]
+ Is the statement 'the magenta block is on the red block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is on the magenta block, the cyan block is on the table, the yellow block is clear, the black block is on the table, the red block is on the table, the white block is clear, the red block is clear, the yellow block is on the blue block, the magenta block is on the black block, the white block is on the table, the orange block is on the table and the cyan block is clear
+ I have executed the following plan:
+[PLAN]
+unstack the yellow block from on top of the blue block
+stack the yellow block on top of the cyan block
+pick up the red block
+stack the red block on top of the yellow block
+unstack the blue block from on top of the magenta block
+stack the blue block on top of the orange block
+unstack the magenta block from on top of the black block
+stack the magenta block on top of the red block
+pick up the black block
+stack the black block on top of the magenta block
+pick up the white block
+stack the white block on top of the black block
+unstack the blue block from on top of the orange block
+stack the blue block on top of the white block
+pick up the orange block
+
+[QUESTION]
+ Is the statement 'the orange block is on the table' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-15.pddl
+Instance ./instances/instance-16.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the hand is empty, the orange block is clear, the blue block is on the magenta block, the cyan block is on the table, the yellow block is clear, the black block is on the table, the red block is on the table, the white block is clear, the red block is clear, the yellow block is on the blue block, the magenta block is on the black block, the white block is on the table, the orange block is on the table and the cyan block is clear
+ I have executed the following plan:
+[PLAN]
+unstack the yellow block from on top of the blue block
+
+[QUESTION]
+ Is the statement 'the yellow block is on the red block' true?
+[ANSWER]
+No
+[STATEMENT]
+the red block is on the green block, the green block is on the yellow block, the hand is empty, the orange block is clear, the cyan block is on the blue block, the blue block is on the table, the yellow block is on the cyan block, the magenta block is clear, the magenta block is on the black block, the white block is on the red block, the orange block is on the table and the black block is on the white block
+ I have executed the following plan:
+[PLAN]
+unstack the magenta block from on top of the black block
+put down the magenta block
+unstack the black block from on top of the white block
+put down the black block
+unstack the white block from on top of the red block
+stack the white block on top of the black block
+unstack the red block from on top of the green block
+
+[QUESTION]
+ Is the statement 'the white block is on the table' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-16.pddl
+Instance ./instances/instance-17.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the red block is on the green block, the green block is on the yellow block, the hand is empty, the orange block is clear, the cyan block is on the blue block, the blue block is on the table, the yellow block is on the cyan block, the magenta block is clear, the magenta block is on the black block, the white block is on the red block, the orange block is on the table and the black block is on the white block
+ I have executed the following plan:
+[PLAN]
+unstack the magenta block from on top of the black block
+stack the magenta block on top of the orange block
+unstack the black block from on top of the white block
+put down the black block
+unstack the white block from on top of the red block
+stack the white block on top of the black block
+unstack the red block from on top of the green block
+put down the red block
+unstack the green block from on top of the yellow block
+stack the green block on top of the red block
+unstack the yellow block from on top of the cyan block
+put down the yellow block
+unstack the cyan block from on top of the blue block
+put down the cyan block
+unstack the white block from on top of the black block
+
+[QUESTION]
+ Is the statement 'the cyan block is on the blue block' true?
+[ANSWER]
+No
+[STATEMENT]
+the orange block is on the green block, the yellow block is on the orange block, the hand is empty, the cyan block is on the red block, the green block is on the black block, the magenta block is on the white block, the red block is on the table, the blue block is on the yellow block, the white block is on the blue block, the magenta block is clear and the black block is on the cyan block
+ I have executed the following plan:
+[PLAN]
+unstack the magenta block from on top of the white block
+put down the magenta block
+unstack the white block from on top of the blue block
+stack the white block on top of the magenta block
+unstack the blue block from on top of the yellow block
+put down the blue block
+unstack the yellow block from on top of the orange block
+put down the yellow block
+unstack the orange block from on top of the green block
+
+[QUESTION]
+ Is the statement 'the hand is currently holding cyan block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-17.pddl
+Instance ./instances/instance-18.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the orange block is on the green block, the yellow block is on the orange block, the hand is empty, the cyan block is on the red block, the green block is on the black block, the magenta block is on the white block, the red block is on the table, the blue block is on the yellow block, the white block is on the blue block, the magenta block is clear and the black block is on the cyan block
+ I have executed the following plan:
+[PLAN]
+unstack the magenta block from on top of the white block
+put down the magenta block
+
+[QUESTION]
+ Is the statement 'the green block is on the cyan block' true?
+[ANSWER]
+No
+[STATEMENT]
+the orange block is on the green block, the hand is empty, the blue block is on the black block, the cyan block is on the red block, the black block is on the table, the red block is on the yellow block, the yellow block is on the white block, the magenta block is clear, the green block is on the blue block, the white block is on the orange block, the cyan block is clear and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the cyan block from on top of the red block
+stack the cyan block on top of the magenta block
+unstack the red block from on top of the yellow block
+put down the red block
+unstack the yellow block from on top of the white block
+stack the yellow block on top of the cyan block
+unstack the white block from on top of the orange block
+stack the white block on top of the yellow block
+unstack the orange block from on top of the green block
+stack the orange block on top of the red block
+unstack the green block from on top of the blue block
+put down the green block
+unstack the blue block from on top of the black block
+stack the blue block on top of the orange block
+unstack the white block from on top of the yellow block
+stack the white block on top of the blue block
+pick up the green block
+stack the green block on top of the white block
+
+[QUESTION]
+ Is the statement 'the hand is currently holding white block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+Instance ./instances/instance-18.pddl
+Instance ./instances/instance-19.pddl
+
+I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
+Pick up a block
+Unstack a block from on top of another block
+Stack a block on top of another block
+I have the following restrictions on my actions.
+I can only pick up or unstack one block at a time.
+I can only pick up a block if the block is on the table and there are no other blocks on top of it.
+I can only unstack a block from on top of another block if the block I am unstacking was really on top of the other block.
+I can only unstack a block from on top of another block if the block I am unstacking had no other block on top of it.
+I can only stack a block on top of another block if I had previously picked up or unstacked the block being stacked.
+I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
+
+[STATEMENT]
+the orange block is on the green block, the hand is empty, the blue block is on the black block, the cyan block is on the red block, the black block is on the table, the red block is on the yellow block, the yellow block is on the white block, the magenta block is clear, the green block is on the blue block, the white block is on the orange block, the cyan block is clear and the magenta block is on the table
+ I have executed the following plan:
+[PLAN]
+unstack the cyan block from on top of the red block
+stack the cyan block on top of the magenta block
+unstack the red block from on top of the yellow block
+put down the red block
+
+[QUESTION]
+ Is the statement 'the red block is on the red block' true?
+[ANSWER]
+No
+[STATEMENT]
+the hand is empty, the blue block is on the black block, the orange block is clear, the cyan block is on the red block, the green block is on the table, the red block is on the yellow block, the yellow block is on the green block, the white block is on the violet block, the magenta block is on the table, the black block is on the cyan block, the magenta block is clear, the orange block is on the white block and the violet block is on the blue block
+ I have executed the following plan:
+[PLAN]
+unstack the orange block from on top of the white block
+put down the orange block
+unstack the white block from on top of the violet block
+put down the white block
+unstack the violet block from on top of the blue block
+put down the violet block
+unstack the blue block from on top of the black block
+stack the blue block on top of the white block
+unstack the black block from on top of the cyan block
+stack the black block on top of the blue block
+unstack the cyan block from on top of the red block
+stack the cyan block on top of the magenta block
+unstack the red block from on top of the yellow block
+stack the red block on top of the violet block
+unstack the yellow block from on top of the green block
+
+[QUESTION]
+ Is the statement 'the blue block is on the red block' true?
+[ANSWER]
+
+--------- GPT3 response ---------
+Yes
+--------- Correct response ---------
+No
+[+]: The number of correct plans is 7/20=35.0%
