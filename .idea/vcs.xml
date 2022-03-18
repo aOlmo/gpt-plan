@@ -2,5 +2,7 @@
 <project version="4">
   <component name="VcsDirectoryMappings">
     <mapping directory="$PROJECT_DIR$" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/gpt_planner/ipc" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/gpt_planner/pddlgenerators" vcs="Git" />
   </component>
 </project>

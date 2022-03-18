@@ -112,7 +112,7 @@ class executor():
         :param problem:
         :return:
         """
-        CMD_FD = f"~/RADAR-X/planner/FAST-DOWNWARD/fast-downward.py {domain} {problem} --search \"astar(lmcut())\" >/dev/null 2>&1"
+        CMD_FD = f"planner/FAST-DOWNWARD/fast-downward.py {domain} {problem} --search \"astar(lmcut())\" >/dev/null 2>&1"
         os.system(CMD_FD)
         # USE SAS PLAN to get actions
         plan = []
@@ -133,7 +133,7 @@ class executor():
         return set([i[0] for i in list_of_preds])
 
     def ground_domain(self, domain, problem):
-        CMD_PR2 = f"~/RADAR-X/planner/PR2/pr2plan -d {domain}  -i {problem} -o blank_obs.dat >/dev/null 2>&1"
+        CMD_PR2 = f"planner/PR2/pr2plan -d {domain}  -i {problem} -o blank_obs.dat >/dev/null 2>&1"
         os.system(CMD_PR2)
         pr_domain = 'pr-domain.pddl'
         pr_problem = 'pr-problem.pddl'

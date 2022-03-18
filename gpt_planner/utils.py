@@ -1,13 +1,9 @@
 import os
 import random
-
 import openai
 import numpy as np
 
 from pathlib import Path
-from string import ascii_lowercase
-
-import tarski.syntax.formulas
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
@@ -49,6 +45,7 @@ def gen_generalization_examples_blocksworld(n, data):
 
         with open(INSTANCE_FILE.format(c), "w+") as fd:
             fd.write(i1)
+
 
 def send_query_gpt3(query, engine, max_tokens, stop="[STATEMENT]"):
     max_token_err_flag = False
@@ -117,7 +114,7 @@ def get_ordered_objects(object_names, line):
     return [el for _, el in sorted_zipped_lists]
 
 
-def gen_blocksworld_problems(objects, n):
+def gen_blocksworld_problems(n, objects):
     ORIG = os.getcwd()
     CMD = "./blocksworld 4 {}"
     INSTANCE_FILE = "../../instances/generated/instance-{}.pddl"

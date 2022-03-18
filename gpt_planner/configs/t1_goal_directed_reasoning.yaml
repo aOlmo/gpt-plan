@@ -19,5 +19,3 @@ predicates:
 
 # encoded_objects: dictionary of object names
 encoded_objects: {"b1": "blue block", "b2": "orange block", "b3": "red block", "b4": "yellow block"}
-callbacks:
-- gen_blocksworld_problems([4, 5], N_MAX)  # Generate N blocksworld problems
