@@ -6,8 +6,6 @@ import numpy as np
 from pathlib import Path
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
-
-
 def gen_generalization_examples_blocksworld(n, data):
     def gen_instance(objs):
         text = "(define (problem BW-generalization-4)\n(:domain blocksworld-4ops)"
@@ -72,7 +70,7 @@ def treat_on(letters_dict, atom):
     return f"the {letters_dict[terms[0].name]} block on top of the {letters_dict[terms[1].name]} block"
 
 
-def parse_problem(problem, data):
+def parse_problem(problem, data, shuffle):
     def parse(init_goal_preds, OBJS):
         TEXT = ""
         predicates = []
@@ -92,11 +90,17 @@ def parse_problem(problem, data):
 
     OBJS = data['encoded_objects']
 
+    init_atoms = problem.init.as_atoms()
+    goal_preds = problem.goal.subformulas if hasattr(problem.goal, 'subformulas') else [problem.goal]
+
+    if shuffle:
+        random.shuffle(init_atoms)
+        random.shuffle(goal_preds)
+
     # ----------- INIT STATE TO TEXT ----------- #
-    INIT = parse(problem.init.as_atoms(), OBJS)
+    INIT = parse(init_atoms, OBJS)
 
     # ----------- GOAL TO TEXT ----------- #
-    goal_preds = problem.goal.subformulas if hasattr(problem.goal, 'subformulas') else [problem.goal]
     GOAL = parse(goal_preds, OBJS)
 
     return INIT, GOAL
@@ -144,17 +148,21 @@ def validate_plan(domain, instance, plan_file):
     return True if "Plan valid" in response else False
 
 
-def compute_plan(domain, instance, out_file):
-    fast_downward_path = os.getenv("FAST_DOWNWARD")
-    cmd = f"{fast_downward_path}/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
-    os.system(cmd)
+def fill_template(INIT, GOAL, PLAN):
+    text = ""
+    if INIT != "":
+        text += "\n[STATEMENT]\n"
+        text += f"As initial conditions I have that {INIT.strip()}"
+    if GOAL != "":
+        text += f"\nMy goal is to have that {GOAL}."
+    text += f"\n\nMy plan is as follows:\n\n[PLAN]{PLAN}"
 
-    if not os.path.exists(out_file):
-        return ""
-    return Path(out_file).read_text()
+    # TODO: Add this replacement to the yml file -- Use "Translations" dict in yml
+    text = text.replace("-", " ").replace("ontable", "on the table")
+    return text
 
 
-def instance_to_text_blocksworld(problem, get_plan, data):
+def instance_to_text_blocksworld(problem, get_plan, data, shuffle=False):
     """
     Function to make a blocksworld instance into human-readable format
     :param get_plan: Flag to return the plan as text as well
@@ -163,7 +171,7 @@ def instance_to_text_blocksworld(problem, get_plan, data):
     OBJS = data['encoded_objects']
 
     # ----------- PARSE THE PROBLEM ----------- #
-    INIT, GOAL = parse_problem(problem, data)
+    INIT, GOAL = parse_problem(problem, data, shuffle)
 
     # ----------- PLAN TO TEXT ----------- #
     PLAN = ""
@@ -179,11 +187,7 @@ def instance_to_text_blocksworld(problem, get_plan, data):
             objs = [OBJS[obj] for obj in objs]
             PLAN += data['actions'][act_name].format(*objs) + "\n"
 
-    # ----------- FILL TEMPLATE ----------- #
-    text = f"{INIT.strip()}\nMy goal is to have that {GOAL}.\nMy plan is as follows:\n\n[PLAN]{PLAN}"
-    text = text.replace("-", " ").replace("ontable", "on the table")
-
-    return text
+    return INIT, GOAL, PLAN
 
 
 def text_to_plan_blocksworld(text, action_set, plan_file, data):

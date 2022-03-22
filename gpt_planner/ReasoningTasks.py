@@ -8,7 +8,7 @@ from tarski.io import PDDLReader
 
 np.random.seed(42)
 
-N_MAX = 30
+N_MAX = 60
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
 
@@ -25,51 +25,57 @@ I can only stack a block on top of another block if I had previously picked up o
 I can only stack a block on top of another block if the block onto which I am stacking the block has no other blocks on top of it.
 """
 
-"""
-Tasks:
-T1. Goal-directed reasoning
-T2. Paraphrasing of goals
-T3. Plan subset completion
-T4. Plan generalization
-T5. Optimality
-T6. Replanning
-T7. Plan execution
-"""
-
-
-def do_t2_paraphrasing():
-    cur_dir = os.getcwd()
-    os.chdir("../gpt_plan_exec/")
-    domain = 'instances/ipc_domain.pddl'
-    problem = 'instances/ipc/instance-1.pddl'
-    exec = executor(domain, problem)
-
-    os.chdir(cur_dir)
-
-    exec.random_prefix_execution()
-    print("PLAN: ", exec.plan)
-    print("INITIAL STATE: ", exec.init_state)
-    print("After Plan Execution (A.P.E.) STATE: ", exec.final_state)
-    print("GOAL STATE: ", exec.goal_state)
-    print("NOT TRUE PREDS: ", exec.not_true_preds)
-
 
 class ReasoningTasks():
+    """
+    Tasks:
+    T1. Goal-directed reasoning
+    T2. Paraphrasing of goals
+    T3. Plan subset completion
+    T4. Plan generalization
+    T5. Optimality
+    T6. Replanning
+    T7. Plan execution
+    """
 
     def __init__(self):
-        self.engine = 'davinci'
+        # TODO: Possibly add config file here
+        self.engine = 'curie'
         self.verbose = 1
         self.n_examples = 1
+        self.max_gpt_response_length = 500
 
         self.plan_file = "sas_plan"
         self.gpt3_plan_file = "gpt_sas_plan"
+
+    # -------------------------------------- UTILS -------------------------------------- #
+    def compute_plan(self, domain, instance, timeout=30):
+        fast_downward_path = os.getenv("FAST_DOWNWARD")
+        cmd = f"timeout {timeout}s {fast_downward_path}/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
+        os.system(cmd)
+
+        if not os.path.exists(self.plan_file):
+            return ""
+        return Path(self.plan_file).read_text()
 
     def read_config(self, config_file):
         with open(config_file, 'r') as file:
             self.data = yaml.safe_load(file)
 
-    def do_t1_t4(self, config_file, task):
+    def get_problem(self, instance, domain):
+        reader = PDDLReader(raise_on_error=True)
+        reader.parse_domain(domain)
+        return reader.parse_instance(instance)
 
+    def get_executor(self, instance, domain):
+        cur_dir = os.getcwd()
+        os.chdir("../gpt_plan_exec/")
+        exec = executor(domain, instance)
+        os.chdir(cur_dir)
+        return exec
+
+    # -------------------------------------- TASKS -------------------------------------- #
+    def t1_t4(self, config_file, task):
         self.read_config(config_file)
 
         if task == "t1":
@@ -89,23 +95,18 @@ class ReasoningTasks():
             for i in range(start, start + self.n_examples + 1):
                 last_plan = True if i == start + self.n_examples else False
                 get_plan = not last_plan
-                # --------------- Read Instance --------------- #
                 cur_instance = instance.format(i)
-                reader = PDDLReader(raise_on_error=True)
-                reader.parse_domain(domain_pddl)
-                problem = reader.parse_instance(cur_instance)
-                lang = problem.language
                 print(f"Instance {cur_instance}")
+                # --------------- Read Instance --------------- #
+                problem = self.get_problem(cur_instance, domain_pddl)
                 # --------------------------------------------- #
-
                 # ------------ Put plan and instance into text ------------ #
-                query += "\n[STATEMENT]\n"
-                plan = compute_plan(domain_pddl, cur_instance, self.plan_file)
-                query += instance_to_text_blocksworld(problem, get_plan, self.data)
+                plan = self.compute_plan(domain_pddl, cur_instance)
+                query += fill_template(*instance_to_text_blocksworld(problem, get_plan, self.data))
                 # --------------------------------------------------------- #
 
             # Querying GPT-3
-            gpt3_response = send_query_gpt3(query, self.engine, 120)
+            gpt3_response = send_query_gpt3(query, self.engine, self.max_gpt_response_length)
 
             # Do text_to_plan procedure
             gpt3_plan = text_to_plan_blocksworld(gpt3_response, problem.actions, self.gpt3_plan_file, self.data)
@@ -128,12 +129,103 @@ class ReasoningTasks():
         os.remove(self.plan_file)
         os.remove(self.gpt3_plan_file)
 
+    def t2_paraphrasing(self, config_file):
+        def convert_state_to_text(state):
+            text_list = []
+            for i in state:
+                pred = i.split('_')
+                objs = [self.data["encoded_objects"][j] for j in pred[1:]]
+                text_list.append(self.data['predicates'][pred[0]].format(*objs))
+
+            state_text = text_list[0]
+            if len(text_list) > 1:
+                state_text = ", ".join(text_list[:-1]) + f" and {text_list[-1]}"
+
+            return state_text
+
+        def paraphrase_goal(exec):
+            exec.complete_plan_execution()
+            goal_state, full_state = list(exec.goal_state), list(exec.final_state)
+            random.shuffle(goal_state)
+
+            return convert_state_to_text(goal_state), convert_state_to_text(full_state)
+
+        gen_blocksworld_problems(N_MAX, [4, 5])
+
+        self.read_config(config_file)
+
+        domain_name = self.data['domain']
+        domain = f'./instances/{self.data["file"]}'
+        instance = f'./instances/{domain_name}/instance-{{}}.pddl'
+
+
+        skipped = 0
+        corrects = {"Random": 0, "Full->Specific": 0, "Specific->Full": 0}
+        for i in range(1, N_MAX):
+            cur_instance = instance.format(i)
+            exec = self.get_executor(cur_instance, domain)
+
+            problem = self.get_problem(cur_instance, domain)
+            gt_plan = self.compute_plan(domain, cur_instance)
+            if gt_plan == "":
+                print(f"[-]: Timeout or error gathering Ground Truth plan for {cur_instance}. Continuing...")
+                skipped += 1
+                continue
+
+            goal_random, goal_full = paraphrase_goal(exec)
+            try:
+                init_specific, goal_specific, plan_specific = instance_to_text_blocksworld(problem, True, self.data)
+                init_specific_shuffled, goal_specific_shuffled, _ = instance_to_text_blocksworld(problem, True, self.data, shuffle=True)
+            except:
+                print(f"[-]: Excess amount of objects for instance {cur_instance}. Continuing...")
+                skipped += 1
+                continue
+
+            # =============== Random =============== #
+            query = INTRO
+            query += fill_template(init_specific, goal_specific, plan_specific)
+            query += fill_template(init_specific_shuffled, goal_specific_shuffled, "")
+
+            gpt3_response = send_query_gpt3(query, self.engine, self.max_gpt_response_length)
+            gpt3_plan = text_to_plan_blocksworld(gpt3_response, problem.actions, self.gpt3_plan_file, self.data)
+
+            corrects["Random"] += int(validate_plan(domain, cur_instance, self.gpt3_plan_file))
+
+            # =============== Full->Specific and Specific->Full =============== #
+            descriptions = list(corrects.keys())[1:]
+            for goal_1, goal_2, descr in zip([goal_specific, goal_full], [goal_full, goal_specific], descriptions):
+                query = INTRO
+                query += fill_template(init_specific, goal_1, plan_specific)
+                query += fill_template(init_specific_shuffled, goal_2, "")
+
+                gpt3_response = send_query_gpt3(query, self.engine, self.max_gpt_response_length)
+                gpt3_plan = text_to_plan_blocksworld(gpt3_response, problem.actions, self.gpt3_plan_file, self.data)
+
+                corrects[descr] += int(validate_plan(domain, cur_instance, self.gpt3_plan_file))
+
+                if self.verbose:
+                    print(query)
+                    print("--------- GPT3 response ---------")
+                    print(gpt3_response)
+                    print("--------- Extracted plan ---------")
+                    print(gpt3_plan)
+                    print("--------- GT plan ---------")
+                    print(gt_plan)
+
+            os.remove(self.plan_file)
+            os.remove(self.gpt3_plan_file)
+
+            exec_plans = i - skipped
+            print("Results")
+            for k in corrects:
+                print(f"{k} {corrects[k]}/{exec_plans} = {round(corrects[k]/exec_plans*100, 2)}%")
+
 
 if __name__ == '__main__':
     tasks_obj = ReasoningTasks()
-    config_file = './configs/t1_goal_directed_reasoning.yaml'
-    # tasks_obj.do_t1_t4(config_file, "t1")
-    do_t2_paraphrasing()
+    config_file = './configs/t2_paraphrasing.yaml'
+    # tasks_obj.t1_t4(config_file, "t1")
+    tasks_obj.t2_paraphrasing(config_file)
 
 #######################
 # if correct:

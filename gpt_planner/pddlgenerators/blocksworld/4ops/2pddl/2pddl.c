@@ -43,7 +43,9 @@ int gn;
 void usage( void );
 Bool process_command_line( int argc, char *argv[] );
 
-
+char nth_letter(int n){
+    return "abcdefghijklmnopqrstuvwxyz"[n-1];
+}
 
 int main( int argc, char *argv[] )
 
@@ -91,15 +93,15 @@ int main( int argc, char *argv[] )
   printf("\n\n(define (problem BW-rand-%d)", gn);
   printf("\n(:domain blocksworld-4ops)");
   printf("\n(:objects ");
-  for ( i = 0; i < gn; i++ ) printf("b%d ", i+1);
+  for ( i = 0; i < gn; i++ ) printf("%c ", nth_letter(i+1));
   printf(")");
   printf("\n(:init");
   printf("\n(handempty)");
   for ( i = 1; i < gn + 1; i++ ) {
     if ( initial[i] == 0 ) {
-      printf("\n(ontable b%d)", i);
+      printf("\n(ontable %c)", nth_letter(i));
     } else {
-      printf("\n(on b%d b%d)", i, initial[i]);
+      printf("\n(on %c %c)", nth_letter(i), nth_letter(initial[i]));
     }
   }
   for ( i = 1; i < gn + 1; i++ ) {
@@ -108,7 +110,7 @@ int main( int argc, char *argv[] )
       if ( initial[j] == i ) break;
     }
     if ( j < gn + 1 ) continue;
-    printf("\n(clear b%d)", i);
+    printf("\n(clear %c)", nth_letter(i));
   }
   printf("\n)");
   printf("\n(:goal");
@@ -116,7 +118,7 @@ int main( int argc, char *argv[] )
   for ( i = 1; i < gn + 1; i++ ) {
     if ( goal[i] == 0 ) {
     } else {
-      printf("\n(on b%d b%d)", i, goal[i]);
+      printf("\n(on %c %c)", nth_letter(i), nth_letter(goal[i]));
     }
   }
   printf(")\n)\n)\n\n\n");
