@@ -1,6 +1,6 @@
 ---
-domain: ipc
-file: ipc_domain.pddl
+domain: generated
+file: generated_domain.pddl
 actions:
   {pick-up: "pick up the {}",
    put-down: "put down the {}",
@@ -24,7 +24,9 @@ predicates:
    handempty: "the hand is empty",
    "on": "the {} is on top of the {}"}
 
-# encoded_objects: dictionary of object names
+translations:
+  {ontable: "on the table"}
+
 encoded_objects:
   {"a": "red block", "b": "blue block", "c": "orange block", "d": "yellow block",
    "e": "white block", "f": "magenta block", "g": "black block", "h": "cyan block",
