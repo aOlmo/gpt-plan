@@ -8,7 +8,7 @@ from tarski.io import PDDLReader
 
 np.random.seed(42)
 
-N_MAX = 60
+N_MAX = 61
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
 
@@ -38,10 +38,10 @@ class ReasoningTasks():
     T7. Plan execution
     """
 
-    def __init__(self):
+    def __init__(self, engine):
         # TODO: Possibly add config file here
-        self.engine = 'curie'
-        self.verbose = 1
+        self.engine = engine
+        self.verbose = 0
         self.n_examples = 1
         self.max_gpt_response_length = 500
 
@@ -222,9 +222,9 @@ class ReasoningTasks():
 
 
 if __name__ == '__main__':
-    tasks_obj = ReasoningTasks()
+    tasks_obj = ReasoningTasks('curie')
     config_file = './configs/t2_paraphrasing.yaml'
-    # tasks_obj.t1_t4(config_file, "t1")
+    # tasks_obj.t1_t4(config_file, "t4")
     tasks_obj.t2_paraphrasing(config_file)
 
 #######################

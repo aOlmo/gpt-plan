@@ -21,7 +21,7 @@ def gen_generalization_examples_blocksworld(n, data):
         text += ")\n(:goal\n(and\n"
 
         obj_tuples = list(zip(objs, objs[1:]))
-        # obj_tuples.reverse()
+        # obj_tuples.reverse() # TODO: this improves considerably Davinci Task4
 
         for i in obj_tuples:
             text += f"(on {i[0]} {i[1]})\n"

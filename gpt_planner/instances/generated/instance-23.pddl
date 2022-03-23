@@ -2,20 +2,19 @@
 
 (define (problem BW-rand-4)
 (:domain blocksworld-4ops)
-(:objects b1 b2 b3 b4 )
+(:objects a b c d )
 (:init
 (handempty)
-(ontable b1)
-(on b2 b4)
-(on b3 b1)
-(on b4 b3)
-(clear b2)
+(on a c)
+(ontable b)
+(on c d)
+(on d b)
+(clear a)
 )
 (:goal
 (and
-(on b1 b3)
-(on b3 b4)
-(on b4 b2))
+(on a c)
+(on d b))
 )
 )
 
