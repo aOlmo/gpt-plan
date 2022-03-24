@@ -6,43 +6,73 @@ import numpy as np
 from pathlib import Path
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
-def gen_generalization_examples_blocksworld(n, data):
-    def gen_instance(objs):
-        text = "(define (problem BW-generalization-4)\n(:domain blocksworld-4ops)"
-        text += "(:objects " + " ".join(objs) + ")\n"
-        text += "(:init \n(handempty)\n"
 
-        for obj in objs:
-            text += f"(ontable {obj})\n"
 
-        for obj in objs:
-            text += f"(clear {obj})\n"
+class Callbacks():
+    def __init__(self, data):
+        self.data = data
+        self.instances_template = f"./instances/{data['domain']}/{data['instances_template']}"
 
-        text += ")\n(:goal\n(and\n"
+    def t1_gen_goal_directed_instances(self, n_objs=[4, 5]):
+        n = self.data['n_instances']
+        ORIG = os.getcwd()
+        CMD = "./blocksworld 4 {}"
 
-        obj_tuples = list(zip(objs, objs[1:]))
-        # obj_tuples.reverse() # TODO: this improves considerably Davinci Task4
+        os.chdir("pddlgenerators/blocksworld/")
+        instance_file = f"{ORIG}/{self.instances_template}"
 
-        for i in obj_tuples:
-            text += f"(on {i[0]} {i[1]})\n"
+        set = {}
+        c = 0
+        for obj in n_objs:
+            cmd_exec = CMD.format(obj)
+            for i in range(n):
+                with open(instance_file.format(c), "w+") as fd:
+                    pddl = os.popen(cmd_exec).read()
+                    if pddl in set:
+                        print("[+]: Same instance, skipping...")
+                        continue
+                    fd.write(pddl)
+                c += 1
 
-        text += ")))"
-        return text
+        print(f"[+]: A total of {c} instances have been generated")
+        os.chdir(ORIG)
 
-    INSTANCE_FILE = f"./instances/{data['domain']}/instance-{{}}.pddl"
+    def t4_gen_generalization_instances(self):
+        def gen_instance(objs):
+            text = "(define (problem BW-generalization-4)\n(:domain blocksworld-4ops)"
+            text += "(:objects " + " ".join(objs) + ")\n"
+            text += "(:init \n(handempty)\n"
 
-    objs = data['encoded_objects']
-    encoded_objs = list(objs.keys())
+            for obj in objs:
+                text += f"(ontable {obj})\n"
 
-    print("[+]: Making generalization instances for blocksworld")
-    for c in range(n):
-        n_objs = random.randint(3, len(data))
-        random.shuffle(encoded_objs)
-        objs_i1 = encoded_objs[:n_objs]
-        i1 = gen_instance(objs_i1)
+            for obj in objs:
+                text += f"(clear {obj})\n"
 
-        with open(INSTANCE_FILE.format(c), "w+") as fd:
-            fd.write(i1)
+            text += ")\n(:goal\n(and\n"
+
+            obj_tuples = list(zip(objs, objs[1:]))
+            # obj_tuples.reverse() # TODO: this improves considerably Davinci t4
+
+            for i in obj_tuples:
+                text += f"(on {i[0]} {i[1]})\n"
+
+            text += ")))"
+            return text
+
+        n = self.data['n_instances']
+        objs = self.data['encoded_objects']
+        encoded_objs = list(objs.keys())
+
+        print("[+]: Making generalization instances for blocksworld")
+        for c in range(n):
+            n_objs = random.randint(3, len(objs))
+            random.shuffle(encoded_objs)
+            objs_instance = encoded_objs[:n_objs]
+            instance = gen_instance(objs_instance)
+
+            with open(self.instances_template.format(c), "w+") as fd:
+                fd.write(instance)
 
 
 def send_query_gpt3(query, engine, max_tokens, stop="[STATEMENT]"):
@@ -116,30 +146,6 @@ def get_ordered_objects(object_names, line):
 
     sorted_zipped_lists = sorted(zip(pos, objs))
     return [el for _, el in sorted_zipped_lists]
-
-
-def gen_blocksworld_problems(n, objects):
-    ORIG = os.getcwd()
-    CMD = "./blocksworld 4 {}"
-    INSTANCE_FILE = "../../instances/generated/instance-{}.pddl"
-
-    os.chdir("pddlgenerators/blocksworld/")
-
-    set = {}
-    c = 0
-    for obj in objects:
-        cmd_exec = CMD.format(obj)
-        for i in range(n):
-            with open(INSTANCE_FILE.format(c), "w+") as fd:
-                pddl = os.popen(cmd_exec).read()
-                if pddl in set:
-                    print("[+]: Same instance, skipping...")
-                    continue
-                fd.write(pddl)
-            c += 1
-
-    print(f"[+]: A total of {c} instances have been generated")
-    os.chdir(ORIG)
 
 
 def validate_plan(domain, instance, plan_file):

@@ -8,7 +8,6 @@ from tarski.io import PDDLReader
 
 np.random.seed(42)
 
-N_MAX = 61
 INTRO = """
 I am playing with a set of blocks where I need to arrange the blocks into stacks. Here are the actions I can do 
 
@@ -39,7 +38,6 @@ class ReasoningTasks():
     """
 
     def __init__(self, engine):
-        # TODO: Possibly add config file here
         self.engine = engine
         self.verbose = 0
         self.n_examples = 1
@@ -78,16 +76,15 @@ class ReasoningTasks():
     def t1_t4(self, config_file, task):
         self.read_config(config_file)
 
-        if task == "t1":
-            gen_blocksworld_problems(N_MAX, [4, 5])  # Generate N blocksworld problems
-        elif task == "t4":
-            gen_generalization_examples_blocksworld(N_MAX, self.data)
+        for f_name in self.data['callbacks']:
+            callback_obj = Callbacks(self.data)
+            getattr(callback_obj, f_name)()
 
         domain_name = self.data['domain']
-        domain_pddl = f'./instances/{self.data["file"]}'
+        domain_pddl = f'./instances/{self.data["domain_file"]}'
         instance_folder = f'./instances/{domain_name}/'
-        instance = f'./instances/{domain_name}/instance-{{}}.pddl'
-        n_files = min(N_MAX, len(os.listdir(instance_folder)))
+        instance = f'./instances/{domain_name}/{self.data["instances_template"]}'
+        n_files = min(self.data['n_instances'], len(os.listdir(instance_folder)))
 
         correct_plans = 0
         for start in range(1, n_files - self.n_examples):
@@ -150,18 +147,16 @@ class ReasoningTasks():
 
             return convert_state_to_text(goal_state), convert_state_to_text(full_state)
 
-        gen_blocksworld_problems(N_MAX, [4, 5])
-
         self.read_config(config_file)
 
         domain_name = self.data['domain']
-        domain = f'./instances/{self.data["file"]}'
-        instance = f'./instances/{domain_name}/instance-{{}}.pddl'
+        domain = f'./instances/{self.data["domain_file"]}'
+        instance = f'./instances/{domain_name}/{self.data["instances_template"]}'
 
-
+        n = self.data['n_instances']
         skipped = 0
         corrects = {"Random": 0, "Full->Specific": 0, "Specific->Full": 0}
-        for i in range(1, N_MAX):
+        for i in range(1, n):
             cur_instance = instance.format(i)
             exec = self.get_executor(cur_instance, domain)
 
@@ -187,7 +182,7 @@ class ReasoningTasks():
             query += fill_template(init_specific_shuffled, goal_specific_shuffled, "")
 
             gpt3_response = send_query_gpt3(query, self.engine, self.max_gpt_response_length)
-            gpt3_plan = text_to_plan_blocksworld(gpt3_response, problem.actions, self.gpt3_plan_file, self.data)
+            _ = text_to_plan_blocksworld(gpt3_response, problem.actions, self.gpt3_plan_file, self.data)
 
             corrects["Random"] += int(validate_plan(domain, cur_instance, self.gpt3_plan_file))
 
@@ -205,12 +200,9 @@ class ReasoningTasks():
 
                 if self.verbose:
                     print(query)
-                    print("--------- GPT3 response ---------")
-                    print(gpt3_response)
-                    print("--------- Extracted plan ---------")
-                    print(gpt3_plan)
-                    print("--------- GT plan ---------")
-                    print(gt_plan)
+                    print(f"{query}\n--------- GPT3 response ---------\n{gpt3_response}\n"
+                          f"--------- Extracted plan ---------\n{gpt3_plan}"
+                          f"\n-------- GT plan ---------\n{gt_plan}")
 
             os.remove(self.plan_file)
             os.remove(self.gpt3_plan_file)
@@ -224,7 +216,7 @@ class ReasoningTasks():
 if __name__ == '__main__':
     tasks_obj = ReasoningTasks('curie')
     config_file = './configs/t2_paraphrasing.yaml'
-    # tasks_obj.t1_t4(config_file, "t4")
+    # tasks_obj.t1_t4(config_file, "t1")
     tasks_obj.t2_paraphrasing(config_file)
 
 #######################

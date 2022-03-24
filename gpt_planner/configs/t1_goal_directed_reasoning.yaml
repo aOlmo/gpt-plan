@@ -1,23 +1,28 @@
 ---
 domain: generated
-file: generated_domain.pddl
+domain_file: generated_domain.pddl
+n_instances: 60
+instances_template: instance-{}.pddl
+
 actions:
   {pick-up: "pick up the {}",
    put-down: "put down the {}",
    stack: "stack the {} on top of the {}",
    unstack: "unstack the {} from on top of the {}"}
+
 objects:
 - blue block
 - orange block
 - red block
 - yellow block
+
 predicates:
   {ontable: "the {} is on the table",
    clear: "the {} is clear",
    handempty: "the hand is empty",
    "on": "the {} is on top of the {}"}
 
-# encoded_objects: dictionary of object names
+# encoded_objects: dictionary of object names, have to be alphabetical
 encoded_objects:
   {"a": "red block", "b": "blue block", "c": "orange block", "d": "yellow block",
    "e": "white block", "f": "magenta block", "g": "black block", "h": "cyan block",
