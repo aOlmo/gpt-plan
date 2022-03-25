@@ -2,8 +2,7 @@ import os
 import random
 import openai
 import numpy as np
-
-from pathlib import Path
+import hashlib
 
 openai.api_key = os.environ["OPENAI_API_KEY"]
 
@@ -13,6 +12,7 @@ class Callbacks():
         self.data = data
         self.instances_template = f"./instances/{data['domain']}/{data['instances_template']}"
 
+        self.hashset = set()
     def t1_gen_goal_directed_instances(self, n_objs=[4, 5]):
         n = self.data['n_instances']
         ORIG = os.getcwd()
@@ -70,6 +70,10 @@ class Callbacks():
             random.shuffle(encoded_objs)
             objs_instance = encoded_objs[:n_objs]
             instance = gen_instance(objs_instance)
+
+            if hashlib.md5(instance.encode('utf-8')).hexdigest() in self.hashset:
+                print("INSTANCE ALREADY IN SET, SKIPPING")
+                continue
 
             with open(self.instances_template.format(c), "w+") as fd:
                 fd.write(instance)

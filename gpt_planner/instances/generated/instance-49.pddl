@@ -1,24 +1,16 @@
-
-
-(define (problem BW-rand-4)
-(:domain blocksworld-4ops)
-(:objects a b c d )
-(:init
+(define (problem BW-generalization-4)
+(:domain blocksworld-4ops)(:objects j i a)
+(:init 
 (handempty)
-(on a b)
-(ontable b)
-(ontable c)
-(ontable d)
+(ontable j)
+(ontable i)
+(ontable a)
+(clear j)
+(clear i)
 (clear a)
-(clear c)
-(clear d)
 )
 (:goal
 (and
-(on b a)
-(on c b)
-(on d c))
-)
-)
-
-
+(on j i)
+(on i a)
+)))

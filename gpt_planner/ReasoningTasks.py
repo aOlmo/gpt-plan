@@ -1,9 +1,8 @@
-import os
-import numpy as np
 import yaml
 from gpt_plan_exec import executor
 
 from utils import *
+from pathlib import Path
 from tarski.io import PDDLReader
 
 np.random.seed(42)
@@ -46,7 +45,7 @@ class ReasoningTasks():
         self.plan_file = "sas_plan"
         self.gpt3_plan_file = "gpt_sas_plan"
 
-    # -------------------------------------- UTILS -------------------------------------- #
+    # ========================================== UTILS ========================================== #
     def compute_plan(self, domain, instance, timeout=30):
         fast_downward_path = os.getenv("FAST_DOWNWARD")
         cmd = f"timeout {timeout}s {fast_downward_path}/fast-downward.py {domain} {instance} --search \"astar(lmcut())\" > /dev/null 2>&1"
@@ -72,8 +71,8 @@ class ReasoningTasks():
         os.chdir(cur_dir)
         return exec
 
-    # -------------------------------------- TASKS -------------------------------------- #
-    def t1_t4(self, config_file, task):
+    # ========================================== TASKS ========================================== #
+    def t1_t4(self, config_file):
         self.read_config(config_file)
 
         for f_name in self.data['callbacks']:
@@ -98,7 +97,7 @@ class ReasoningTasks():
                 problem = self.get_problem(cur_instance, domain_pddl)
                 # --------------------------------------------- #
                 # ------------ Put plan and instance into text ------------ #
-                plan = self.compute_plan(domain_pddl, cur_instance)
+                gt_plan = self.compute_plan(domain_pddl, cur_instance)
                 query += fill_template(*instance_to_text_blocksworld(problem, get_plan, self.data))
                 # --------------------------------------------------------- #
 
@@ -109,13 +108,9 @@ class ReasoningTasks():
             gpt3_plan = text_to_plan_blocksworld(gpt3_response, problem.actions, self.gpt3_plan_file, self.data)
 
             if self.verbose:
-                print(query)
-                print("--------- GPT3 response ---------")
-                print(gpt3_response)
-                print("--------- Extracted plan ---------")
-                print(gpt3_plan)
-                print("--------- GT plan ---------")
-                print(plan)
+                print(f"{query}\n--------- GPT3 response ---------\n{gpt3_response}\n"
+                      f"--------- Extracted plan ---------\n{gpt3_plan}"
+                      f"\n-------- GT plan ---------\n{gt_plan}")
 
             # Apply VAL
             correct = int(validate_plan(domain_pddl, cur_instance, self.gpt3_plan_file))
@@ -162,6 +157,7 @@ class ReasoningTasks():
 
             problem = self.get_problem(cur_instance, domain)
             gt_plan = self.compute_plan(domain, cur_instance)
+
             if gt_plan == "":
                 print(f"[-]: Timeout or error gathering Ground Truth plan for {cur_instance}. Continuing...")
                 skipped += 1
@@ -172,7 +168,7 @@ class ReasoningTasks():
                 init_specific, goal_specific, plan_specific = instance_to_text_blocksworld(problem, True, self.data)
                 init_specific_shuffled, goal_specific_shuffled, _ = instance_to_text_blocksworld(problem, True, self.data, shuffle=True)
             except:
-                print(f"[-]: Excess amount of objects for instance {cur_instance}. Continuing...")
+                print(f"[-]: Error converting {cur_instance} to text. Continuing...")
                 skipped += 1
                 continue
 
@@ -199,7 +195,6 @@ class ReasoningTasks():
                 corrects[descr] += int(validate_plan(domain, cur_instance, self.gpt3_plan_file))
 
                 if self.verbose:
-                    print(query)
                     print(f"{query}\n--------- GPT3 response ---------\n{gpt3_response}\n"
                           f"--------- Extracted plan ---------\n{gpt3_plan}"
                           f"\n-------- GT plan ---------\n{gt_plan}")
@@ -215,9 +210,9 @@ class ReasoningTasks():
 
 if __name__ == '__main__':
     tasks_obj = ReasoningTasks('curie')
-    config_file = './configs/t2_paraphrasing.yaml'
-    # tasks_obj.t1_t4(config_file, "t1")
-    tasks_obj.t2_paraphrasing(config_file)
+    config_file = './configs/t4_plan_generalization.yaml'
+    tasks_obj.t1_t4(config_file)
+    # tasks_obj.t2_paraphrasing(config_file)
 
 #######################
 # if correct:
